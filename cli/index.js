@@ -4,14 +4,19 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+
 import {
   findSkill,
   installSkill
 } from "./installer.js";
+
 import { createDoctor } from "./doctor.js";
+
 import {
-  listProfiles
+  listProfiles,
+  findProfile
 } from "./profiles.js";
+
 import {
   installProfile
 } from "./profile-installer.js";
@@ -140,7 +145,6 @@ function parseSkill(filePath) {
 function commandHelp() {
   print(`
 ${colors.bold}Maykel Dev Skills${colors.reset}
-
 Practical agent skills and workflows for real-world software development.
 
 Usage:
@@ -163,6 +167,9 @@ Commands:
 
   profile list
       List available skill profiles.
+
+  profile info <profile>
+      Show detailed information about a profile.
 
   profile install <profile>
       Install all skills in a profile.
@@ -201,6 +208,8 @@ Examples:
   npx maykel-dev-skills install sqlite-debugging
 
   npx maykel-dev-skills profile list
+
+  npx maykel-dev-skills profile info engineering
 
   npx maykel-dev-skills profile install engineering
 
@@ -408,6 +417,67 @@ function listSkillProfiles() {
   }
 }
 
+function showProfileInfo(profileName) {
+  if (!profileName) {
+    error(
+      "Please provide a profile name."
+    );
+
+    print(
+      "\nExample:\n  npx maykel-dev-skills profile info engineering\n"
+    );
+
+    process.exitCode = 1;
+    return;
+  }
+
+  const profile = findProfile(
+    root,
+    profileName
+  );
+
+  if (!profile) {
+    error(
+      `Profile "${profileName}" was not found.`
+    );
+
+    process.exitCode = 1;
+    return;
+  }
+
+  print(
+    `\n${colors.bold}${profile.name}${colors.reset}\n`
+  );
+
+  print(
+    `  Description: ${profile.description}`
+  );
+
+  print(
+    `  Skills:      ${profile.skills.length}`
+  );
+
+  for (const skillName of profile.skills) {
+    const skill = findSkill(skillName);
+
+    if (skill) {
+      print(
+        `    ${colors.green}✓${colors.reset} ${skill.skill.name}@${skill.skill.version}`
+      );
+
+      continue;
+    }
+
+    print(
+      `    ${colors.red}✗${colors.reset} ${skillName} — skill not found`
+    );
+  }
+
+  print(
+    `  Path:        ${profile.path}\n`
+  );
+}
+
 function installSkillProfile(
   profileArgs
 ) {
@@ -527,7 +597,7 @@ function runProfileCommand(
     );
 
     print(
-      "\nAvailable profile commands:\n\n  profile list\n  profile install <profile>\n"
+      "\nAvailable profile commands:\n\n  profile list\n  profile info <profile>\n  profile install <profile>\n"
     );
 
     process.exitCode = 1;
@@ -536,6 +606,13 @@ function runProfileCommand(
 
   if (subcommand === "list") {
     listSkillProfiles();
+    return;
+  }
+
+  if (subcommand === "info") {
+    showProfileInfo(
+      profileArgs[1]
+    );
     return;
   }
 
@@ -552,7 +629,7 @@ function runProfileCommand(
   );
 
   print(
-    "\nAvailable profile commands:\n\n  profile list\n  profile install <profile>\n"
+    "\nAvailable profile commands:\n\n  profile list\n  profile info <profile>\n  profile install <profile>\n"
   );
 
   process.exitCode = 1;
