@@ -123,8 +123,7 @@ function createDoctor(root) {
         )
       );
 
-      const valid =
-        registry.schemaVersion === 1 &&
+      const validSkills =
         Number.isInteger(
           registry.totalSkills
         ) &&
@@ -134,12 +133,52 @@ function createDoctor(root) {
         registry.totalSkills ===
           registry.skills.length;
 
+      const validProfiles =
+        Array.isArray(
+          registry.profiles
+        );
+
+      const valid =
+        registry.schemaVersion === 1 &&
+        validSkills &&
+        validProfiles;
+
+      if (!valid) {
+        const details = [];
+
+        if (
+          registry.schemaVersion !== 1
+        ) {
+          details.push(
+            "Invalid schemaVersion."
+          );
+        }
+
+        if (!validSkills) {
+          details.push(
+            "Invalid skills registry."
+          );
+        }
+
+        if (!validProfiles) {
+          details.push(
+            "Invalid profiles registry."
+          );
+        }
+
+        addCheck(
+          "registry is valid",
+          false,
+          details.join(" ")
+        );
+
+        return;
+      }
+
       addCheck(
         "registry is valid",
-        valid,
-        valid
-          ? `${registry.totalSkills} skill(s) registered`
-          : "Registry structure is invalid."
+        true,
+        `${registry.totalSkills} skill(s), ${registry.profiles.length} profile(s) registered`
       );
     } catch (error) {
       addCheck(
@@ -219,18 +258,14 @@ function createDoctor(root) {
 
   function run() {
     checkNodeVersion();
-
     checkPackageJson();
-
     checkDirectory("cli");
     checkDirectory("skills");
     checkDirectory("registry");
     checkDirectory("scripts");
     checkDirectory("tests");
-
     checkFile("package.json");
     checkFile("docs/SKILL-SPEC.md");
-
     checkRegistry();
     checkSkills();
     checkTests();
