@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-22T05:53:44.016Z",
+  "totalSkills": 1,
+  "skills": [
+    {
+      "name": "surgical-fix",
+      "description": "Make the smallest safe change needed to fix a verified problem without introducing unrelated changes.",
+      "version": "0.1.0",
+      "category": "engineering",
+      "path": "skills/engineering/surgical-fix/SKILL.md"
+    }
+  ]
+}
