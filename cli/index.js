@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { installSkill } from "./installer.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,12 +36,11 @@ function error(message) {
 
 function getSkillFiles() {
   const skillsDir = path.join(root, "skills");
+  const results = [];
 
   if (!fs.existsSync(skillsDir)) {
-    return [];
+    return results;
   }
-
-  const results = [];
 
   function walk(directory) {
     for (const entry of fs.readdirSync(directory, {
@@ -122,6 +122,9 @@ Commands:
   search <query>
       Search skills by name, description, or category.
 
+  install <skill>
+      Install a skill into the current project.
+
   validate
       Validate all skills in the repository.
 
@@ -129,6 +132,12 @@ Commands:
       Show this help message.
 
 Options:
+
+  --target <directory>
+      Choose where the skill will be installed.
+
+  --force
+      Replace an existing installed skill.
 
   --version, -v
       Show the current version.
@@ -139,7 +148,19 @@ Options:
 Examples:
 
   npx maykel-dev-skills list
+
   npx maykel-dev-skills search sqlite
+
+  npx maykel-dev-skills install sqlite-debugging
+
+  npx maykel-dev-skills install surgical-fix
+
+  npx maykel-dev-skills install sqlite-debugging --target .claude/skills
+
+  npx maykel-dev-skills install sqlite-debugging --target .cursor/skills
+
+  npx maykel-dev-skills install sqlite-debugging --force
+
   npx maykel-dev-skills validate
 `);
 }
@@ -231,13 +252,17 @@ function searchSkills(query) {
     );
 
     print(
-      `    ${path.relative(root, file).replaceAll("\\", "/")}\n`
+      `    ${path
+        .relative(root, file)
+        .replaceAll("\\", "/")}\n`
     );
   }
 }
 
 function runValidation() {
-  print(`\n${colors.bold}Validating skills...${colors.reset}\n`);
+  print(
+    `\n${colors.bold}Validating skills...${colors.reset}\n`
+  );
 
   const validatorPath = path.join(
     root,
@@ -262,7 +287,9 @@ function runValidation() {
   );
 
   if (result.error) {
-    error(`Failed to run validator: ${result.error.message}`);
+    error(
+      `Failed to run validator: ${result.error.message}`
+    );
 
     process.exitCode = 1;
     return;
@@ -276,6 +303,85 @@ function runValidation() {
   error("Skill validation failed.");
 
   process.exitCode = result.status ?? 1;
+}
+
+function installCommand(commandArgs) {
+  const skillName = commandArgs.find(
+    (argument) => !argument.startsWith("--")
+  );
+
+  if (!skillName) {
+    error("Please provide a skill name.");
+
+    print(
+      "\nExample:\n  npx maykel-dev-skills install sqlite-debugging\n"
+    );
+
+    process.exitCode = 1;
+    return;
+  }
+
+  let targetDirectory = ".agents/skills";
+  let force = false;
+
+  for (let index = 0; index < commandArgs.length; index += 1) {
+    const argument = commandArgs[index];
+
+    if (argument === "--force") {
+      force = true;
+      continue;
+    }
+
+    if (argument === "--target") {
+      const nextArgument = commandArgs[index + 1];
+
+      if (!nextArgument) {
+        error(
+          "--target requires a directory."
+        );
+
+        process.exitCode = 1;
+        return;
+      }
+
+      targetDirectory = nextArgument;
+      index += 1;
+    }
+  }
+
+  try {
+    const result = installSkill(
+      skillName,
+      targetDirectory,
+      {
+        force
+      }
+    );
+
+    print(
+      `\n${colors.bold}Installing skill${colors.reset}\n`
+    );
+
+    success(
+      `${result.name}@${result.version} installed.`
+    );
+
+    print(
+      `  category: ${result.category}`
+    );
+
+    print(
+      `  source: ${result.source}`
+    );
+
+    print(
+      `  destination: ${result.destination}\n`
+    );
+  } catch (installationError) {
+    error(installationError.message);
+
+    process.exitCode = 1;
+  }
 }
 
 function showVersion() {
@@ -297,7 +403,13 @@ switch (command) {
     break;
 
   case "search":
-    searchSkills(args.slice(1).join(" "));
+    searchSkills(
+      args.slice(1).join(" ")
+    );
+    break;
+
+  case "install":
+    installCommand(args.slice(1));
     break;
 
   case "validate":
