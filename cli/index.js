@@ -21,6 +21,11 @@ import {
   installProfile
 } from "./profile-installer.js";
 
+import {
+  readLockfile,
+  getLockfilePath
+} from "./lockfile.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "..");
@@ -174,6 +179,9 @@ Commands:
   profile install <profile>
       Install all skills in a profile.
 
+  lock
+      Show skills recorded in skills-lock.json.
+
   validate
       Validate all skills in the repository.
 
@@ -213,9 +221,7 @@ Examples:
 
   npx maykel-dev-skills profile install engineering
 
-  npx maykel-dev-skills profile install engineering --target .claude/skills
-
-  npx maykel-dev-skills profile install engineering --force
+  npx maykel-dev-skills lock
 
   npx maykel-dev-skills validate
 
@@ -476,6 +482,60 @@ function showProfileInfo(profileName) {
   print(
     `  Path:        ${profile.path}\n`
   );
+}
+
+function showLockfile() {
+  try {
+    const lockfile =
+      readLockfile(process.cwd());
+
+    const entries =
+      Object.entries(
+        lockfile.skills
+      );
+
+    print(
+      `\n${colors.bold}Locked Skills${colors.reset}\n`
+    );
+
+    if (entries.length === 0) {
+      print(
+        "  No skills are currently locked.\n"
+      );
+
+      return;
+    }
+
+    for (const [
+      skillName,
+      entry
+    ] of entries) {
+      print(
+        `  ${colors.green}✓${colors.reset} ${skillName}@${entry.version}`
+      );
+
+      print(
+        `    source: ${entry.source}`
+      );
+    }
+
+    print(
+      `\n  Lockfile: ${path
+        .relative(
+          process.cwd(),
+          getLockfilePath(
+            process.cwd()
+          )
+        )
+        .replaceAll("\\", "/")}\n`
+    );
+  } catch (lockfileError) {
+    error(
+      lockfileError.message
+    );
+
+    process.exitCode = 1;
+  }
 }
 
 function installSkillProfile(
@@ -871,6 +931,10 @@ switch (command) {
     runProfileCommand(
       args.slice(1)
     );
+    break;
+
+  case "lock":
+    showLockfile();
     break;
 
   case "validate":
