@@ -9,6 +9,10 @@ import {
   installSkill
 } from "./installer.js";
 import { createDoctor } from "./doctor.js";
+import {
+  listProfiles,
+  findProfile
+} from "./profiles.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -155,6 +159,9 @@ Commands:
   install <skill>
       Install a skill into the current project.
 
+  profile list
+      List available skill profiles.
+
   validate
       Validate all skills in the repository.
 
@@ -188,13 +195,7 @@ Examples:
 
   npx maykel-dev-skills install sqlite-debugging
 
-  npx maykel-dev-skills install surgical-fix
-
-  npx maykel-dev-skills install sqlite-debugging --target .claude/skills
-
-  npx maykel-dev-skills install sqlite-debugging --target .cursor/skills
-
-  npx maykel-dev-skills install sqlite-debugging --force
+  npx maykel-dev-skills profile list
 
   npx maykel-dev-skills validate
 
@@ -361,6 +362,72 @@ function showSkillInfo(skillName) {
   print(
     `  Path:        ${relativePath}\n`
   );
+}
+
+function listSkillProfiles() {
+  const profiles = listProfiles(root);
+
+  if (profiles.length === 0) {
+    print("No profiles found.");
+    return;
+  }
+
+  print(
+    `\n${colors.bold}Available Profiles${colors.reset}\n`
+  );
+
+  for (const profile of profiles) {
+    print(
+      `  ${colors.cyan}${profile.name}${colors.reset} — ${profile.description}`
+    );
+
+    print(
+      `    skills: ${profile.skills.length}`
+    );
+
+    for (const skillName of profile.skills) {
+      print(
+        `      - ${skillName}`
+      );
+    }
+
+    print(
+      `    ${profile.path}\n`
+    );
+  }
+}
+
+function runProfileCommand(profileArgs) {
+  const subcommand =
+    profileArgs[0];
+
+  if (!subcommand) {
+    error(
+      "Please provide a profile command."
+    );
+
+    print(
+      "\nAvailable profile commands:\n\n  profile list\n"
+    );
+
+    process.exitCode = 1;
+    return;
+  }
+
+  if (subcommand === "list") {
+    listSkillProfiles();
+    return;
+  }
+
+  error(
+    `Unknown profile command: ${subcommand}`
+  );
+
+  print(
+    "\nAvailable profile commands:\n\n  profile list\n"
+  );
+
+  process.exitCode = 1;
 }
 
 function runValidation() {
@@ -588,6 +655,12 @@ switch (command) {
 
   case "install":
     installCommand(args.slice(1));
+    break;
+
+  case "profile":
+    runProfileCommand(
+      args.slice(1)
+    );
     break;
 
   case "validate":
