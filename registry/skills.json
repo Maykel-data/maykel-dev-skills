@@ -20,5 +20,15 @@
       "category": "engineering",
       "path": "skills/engineering/surgical-fix/SKILL.md"
     }
+  ],
+  "profiles": [
+    {
+      "name": "engineering",
+      "description": "Core software engineering skills for safe, focused development work.",
+      "skills": [
+        "surgical-fix"
+      ],
+      "path": "profiles/engineering.json"
+    }
   ]
 }

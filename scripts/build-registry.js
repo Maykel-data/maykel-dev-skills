@@ -7,7 +7,9 @@ const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "..");
 
 const skillsDir = path.join(root, "skills");
+const profilesDir = path.join(root, "profiles");
 const registryDir = path.join(root, "registry");
+
 const registryFile = path.join(
   registryDir,
   "skills.json"
@@ -82,43 +84,103 @@ function parseFrontmatter(content) {
   return data;
 }
 
-fs.mkdirSync(registryDir, {
-  recursive: true
-});
+function loadSkills() {
+  const skillFiles = walk(skillsDir);
+  const skills = [];
 
-const skillFiles = walk(skillsDir);
+  for (const file of skillFiles) {
+    const content = fs.readFileSync(
+      file,
+      "utf8"
+    );
 
-const skills = [];
+    const frontmatter =
+      parseFrontmatter(content);
 
-for (const file of skillFiles) {
-  const content = fs.readFileSync(
-    file,
-    "utf8"
-  );
+    if (!frontmatter) {
+      continue;
+    }
 
-  const frontmatter =
-    parseFrontmatter(content);
+    const relativePath = path
+      .relative(root, file)
+      .replaceAll("\\", "/");
 
-  if (!frontmatter) {
-    continue;
+    skills.push({
+      name: frontmatter.name,
+      description: frontmatter.description,
+      version: frontmatter.version,
+      category: frontmatter.category,
+      path: relativePath
+    });
   }
 
-  const relativePath = path
-    .relative(root, file)
-    .replaceAll("\\", "/");
+  skills.sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
 
-  skills.push({
-    name: frontmatter.name,
-    description: frontmatter.description,
-    version: frontmatter.version,
-    category: frontmatter.category,
-    path: relativePath
-  });
+  return skills;
 }
 
-skills.sort((a, b) =>
-  a.name.localeCompare(b.name)
+function loadProfiles() {
+  if (!fs.existsSync(profilesDir)) {
+    return [];
+  }
+
+  const profiles = [];
+
+  for (const entry of fs.readdirSync(
+    profilesDir,
+    { withFileTypes: true }
+  )) {
+    if (
+      !entry.isFile() ||
+      !entry.name.endsWith(".json")
+    ) {
+      continue;
+    }
+
+    const filePath = path.join(
+      profilesDir,
+      entry.name
+    );
+
+    try {
+      const profile = JSON.parse(
+        fs.readFileSync(
+          filePath,
+          "utf8"
+        )
+      );
+
+      profiles.push({
+        name: profile.name,
+        description: profile.description,
+        skills: Array.isArray(profile.skills)
+          ? [...profile.skills].sort()
+          : [],
+        path: path
+          .relative(root, filePath)
+          .replaceAll("\\", "/")
+      });
+    } catch {
+      continue;
+    }
+  }
+
+  profiles.sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
+
+  return profiles;
+}
+
+fs.mkdirSync(
+  registryDir,
+  { recursive: true }
 );
+
+const skills = loadSkills();
+const profiles = loadProfiles();
 
 const categories = {};
 
@@ -127,17 +189,20 @@ for (const skill of skills) {
     (categories[skill.category] || 0) + 1;
 }
 
-const sortedCategories = Object.fromEntries(
-  Object.entries(categories).sort(
-    ([a], [b]) => a.localeCompare(b)
-  )
-);
+const sortedCategories =
+  Object.fromEntries(
+    Object.entries(categories).sort(
+      ([a], [b]) =>
+        a.localeCompare(b)
+    )
+  );
 
 const registry = {
   schemaVersion: 1,
   totalSkills: skills.length,
   categories: sortedCategories,
-  skills
+  skills,
+  profiles
 };
 
 fs.writeFileSync(
@@ -155,9 +220,18 @@ console.log(
 );
 
 console.log(
-  `Categories: ${Object.keys(sortedCategories).length}`
+  `Profiles registered: ${profiles.length}`
 );
 
 console.log(
-  `Output: ${path.relative(root, registryFile)}`
+  `Categories: ${Object.keys(
+    sortedCategories
+  ).length}`
+);
+
+console.log(
+  `Output: ${path.relative(
+    root,
+    registryFile
+  )}`
 );
