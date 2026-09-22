@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, "..");
 
 const defaultTarget = ".agents/skills";
 
-function getSkillFiles() {
+function getSkillDirectories() {
   const skillsDir = path.join(root, "skills");
   const results = [];
 
@@ -20,15 +20,23 @@ function getSkillFiles() {
     for (const entry of fs.readdirSync(directory, {
       withFileTypes: true
     })) {
-      const fullPath = path.join(directory, entry.name);
+      const fullPath = path.join(
+        directory,
+        entry.name
+      );
 
       if (entry.isDirectory()) {
-        walk(fullPath);
-        continue;
-      }
+        const skillFile = path.join(
+          fullPath,
+          "SKILL.md"
+        );
 
-      if (entry.name === "SKILL.md") {
-        results.push(fullPath);
+        if (fs.existsSync(skillFile)) {
+          results.push(fullPath);
+          continue;
+        }
+
+        walk(fullPath);
       }
     }
   }
@@ -39,13 +47,19 @@ function getSkillFiles() {
 }
 
 function parseSkill(filePath) {
-  const content = fs.readFileSync(filePath, "utf8");
+  const content = fs.readFileSync(
+    filePath,
+    "utf8"
+  );
 
   if (!content.startsWith("---")) {
     return null;
   }
 
-  const end = content.indexOf("\n---", 3);
+  const end = content.indexOf(
+    "\n---",
+    3
+  );
 
   if (end === -1) {
     return null;
@@ -79,20 +93,64 @@ function parseSkill(filePath) {
 }
 
 function findSkill(skillName) {
-  const files = getSkillFiles();
+  const directories = getSkillDirectories();
 
-  for (const file of files) {
-    const skill = parseSkill(file);
+  for (const directory of directories) {
+    const skillFile = path.join(
+      directory,
+      "SKILL.md"
+    );
+
+    const skill = parseSkill(skillFile);
 
     if (skill?.name === skillName) {
       return {
-        file,
+        directory,
         skill
       };
     }
   }
 
   return null;
+}
+
+function copyDirectory(
+  sourceDirectory,
+  destinationDirectory
+) {
+  fs.mkdirSync(destinationDirectory, {
+    recursive: true
+  });
+
+  for (const entry of fs.readdirSync(
+    sourceDirectory,
+    {
+      withFileTypes: true
+    }
+  )) {
+    const sourcePath = path.join(
+      sourceDirectory,
+      entry.name
+    );
+
+    const destinationPath = path.join(
+      destinationDirectory,
+      entry.name
+    );
+
+    if (entry.isDirectory()) {
+      copyDirectory(
+        sourcePath,
+        destinationPath
+      );
+      continue;
+    }
+
+    fs.copyFileSync(
+      sourcePath,
+      destinationPath
+    );
+  }
 }
 
 function installSkill(
@@ -124,30 +182,31 @@ function installSkill(
     skillName
   );
 
-  fs.mkdirSync(
-    skillDestination,
-    {
-      recursive: true
-    }
-  );
-
-  const destinationFile = path.join(
-    skillDestination,
-    "SKILL.md"
-  );
-
   if (
-    fs.existsSync(destinationFile) &&
+    fs.existsSync(skillDestination) &&
     !options.force
   ) {
     throw new Error(
-      `Skill "${skillName}" already exists at ${destinationFile}. Use --force to replace it.`
+      `Skill "${skillName}" already exists at ${skillDestination}. Use --force to replace it.`
     );
   }
 
-  fs.copyFileSync(
-    result.file,
-    destinationFile
+  if (
+    fs.existsSync(skillDestination) &&
+    options.force
+  ) {
+    fs.rmSync(
+      skillDestination,
+      {
+        recursive: true,
+        force: true
+      }
+    );
+  }
+
+  copyDirectory(
+    result.directory,
+    skillDestination
   );
 
   return {
@@ -156,11 +215,11 @@ function installSkill(
     category: result.skill.category,
     source: path.relative(
       root,
-      result.file
+      result.directory
     ).replaceAll("\\", "/"),
     destination: path.relative(
       process.cwd(),
-      destinationFile
+      skillDestination
     ).replaceAll("\\", "/")
   };
 }
