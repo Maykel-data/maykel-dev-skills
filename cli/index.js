@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { installSkill } from "./installer.js";
+import { findSkill, installSkill } from "./installer.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,15 +27,23 @@ function print(message = "") {
 }
 
 function success(message) {
-  print(`${colors.green}✓${colors.reset} ${message}`);
+  print(
+    `${colors.green}✓${colors.reset} ${message}`
+  );
 }
 
 function error(message) {
-  console.error(`${colors.red}✗${colors.reset} ${message}`);
+  console.error(
+    `${colors.red}✗${colors.reset} ${message}`
+  );
 }
 
 function getSkillFiles() {
-  const skillsDir = path.join(root, "skills");
+  const skillsDir = path.join(
+    root,
+    "skills"
+  );
+
   const results = [];
 
   if (!fs.existsSync(skillsDir)) {
@@ -43,10 +51,16 @@ function getSkillFiles() {
   }
 
   function walk(directory) {
-    for (const entry of fs.readdirSync(directory, {
-      withFileTypes: true
-    })) {
-      const fullPath = path.join(directory, entry.name);
+    for (const entry of fs.readdirSync(
+      directory,
+      {
+        withFileTypes: true
+      }
+    )) {
+      const fullPath = path.join(
+        directory,
+        entry.name
+      );
 
       if (entry.isDirectory()) {
         walk(fullPath);
@@ -65,13 +79,19 @@ function getSkillFiles() {
 }
 
 function parseSkill(filePath) {
-  const content = fs.readFileSync(filePath, "utf8");
+  const content = fs.readFileSync(
+    filePath,
+    "utf8"
+  );
 
   if (!content.startsWith("---")) {
     return null;
   }
 
-  const end = content.indexOf("\n---", 3);
+  const end = content.indexOf(
+    "\n---",
+    3
+  );
 
   if (end === -1) {
     return null;
@@ -83,8 +103,11 @@ function parseSkill(filePath) {
 
   const data = {};
 
-  for (const line of frontmatter.split(/\r?\n/)) {
-    const separator = line.indexOf(":");
+  for (const line of frontmatter.split(
+    /\r?\n/
+  )) {
+    const separator =
+      line.indexOf(":");
 
     if (separator === -1) {
       continue;
@@ -122,6 +145,9 @@ Commands:
   search <query>
       Search skills by name, description, or category.
 
+  info <skill>
+      Show detailed information about a skill.
+
   install <skill>
       Install a skill into the current project.
 
@@ -151,6 +177,8 @@ Examples:
 
   npx maykel-dev-skills search sqlite
 
+  npx maykel-dev-skills info sqlite-debugging
+
   npx maykel-dev-skills install sqlite-debugging
 
   npx maykel-dev-skills install surgical-fix
@@ -173,7 +201,9 @@ function listSkills() {
     return;
   }
 
-  print(`\n${colors.bold}Available Skills${colors.reset}\n`);
+  print(
+    `\n${colors.bold}Available Skills${colors.reset}\n`
+  );
 
   for (const file of files) {
     const skill = parseSkill(file);
@@ -194,13 +224,17 @@ function listSkills() {
       `    category: ${skill.category} | version: ${skill.version}`
     );
 
-    print(`    ${relativePath}\n`);
+    print(
+      `    ${relativePath}\n`
+    );
   }
 }
 
 function searchSkills(query) {
   if (!query) {
-    error("Please provide a search query.");
+    error(
+      "Please provide a search query."
+    );
 
     print(
       "\nExample:\n  npx maykel-dev-skills search sqlite\n"
@@ -210,7 +244,8 @@ function searchSkills(query) {
     return;
   }
 
-  const normalizedQuery = query.toLowerCase();
+  const normalizedQuery =
+    query.toLowerCase();
 
   const matches = getSkillFiles()
     .map((file) => ({
@@ -230,7 +265,9 @@ function searchSkills(query) {
         .join(" ")
         .toLowerCase();
 
-      return searchableText.includes(normalizedQuery);
+      return searchableText.includes(
+        normalizedQuery
+      );
     });
 
   print(
@@ -238,7 +275,10 @@ function searchSkills(query) {
   );
 
   if (matches.length === 0) {
-    print("No matching skills found.\n");
+    print(
+      "No matching skills found.\n"
+    );
+
     return;
   }
 
@@ -259,6 +299,61 @@ function searchSkills(query) {
   }
 }
 
+function showSkillInfo(skillName) {
+  if (!skillName) {
+    error(
+      "Please provide a skill name."
+    );
+
+    print(
+      "\nExample:\n  npx maykel-dev-skills info sqlite-debugging\n"
+    );
+
+    process.exitCode = 1;
+    return;
+  }
+
+  const result = findSkill(skillName);
+
+  if (!result) {
+    error(
+      `Skill "${skillName}" was not found.`
+    );
+
+    process.exitCode = 1;
+    return;
+  }
+
+  const skillFile = path.join(
+    result.directory,
+    "SKILL.md"
+  );
+
+  const relativePath = path
+    .relative(root, skillFile)
+    .replaceAll("\\", "/");
+
+  print(
+    `\n${colors.bold}${result.skill.name}${colors.reset}\n`
+  );
+
+  print(
+    `  Description: ${result.skill.description}`
+  );
+
+  print(
+    `  Version:     ${result.skill.version}`
+  );
+
+  print(
+    `  Category:    ${result.skill.category}`
+  );
+
+  print(
+    `  Path:        ${relativePath}\n`
+  );
+}
+
 function runValidation() {
   print(
     `\n${colors.bold}Validating skills...${colors.reset}\n`
@@ -271,7 +366,9 @@ function runValidation() {
   );
 
   if (!fs.existsSync(validatorPath)) {
-    error("Validator script not found.");
+    error(
+      "Validator script not found."
+    );
 
     process.exitCode = 1;
     return;
@@ -296,22 +393,31 @@ function runValidation() {
   }
 
   if (result.status === 0) {
-    success("All skills passed validation.");
+    success(
+      "All skills passed validation."
+    );
+
     return;
   }
 
-  error("Skill validation failed.");
+  error(
+    "Skill validation failed."
+  );
 
-  process.exitCode = result.status ?? 1;
+  process.exitCode =
+    result.status ?? 1;
 }
 
 function installCommand(commandArgs) {
   const skillName = commandArgs.find(
-    (argument) => !argument.startsWith("--")
+    (argument) =>
+      !argument.startsWith("--")
   );
 
   if (!skillName) {
-    error("Please provide a skill name.");
+    error(
+      "Please provide a skill name."
+    );
 
     print(
       "\nExample:\n  npx maykel-dev-skills install sqlite-debugging\n"
@@ -321,11 +427,18 @@ function installCommand(commandArgs) {
     return;
   }
 
-  let targetDirectory = ".agents/skills";
+  let targetDirectory =
+    ".agents/skills";
+
   let force = false;
 
-  for (let index = 0; index < commandArgs.length; index += 1) {
-    const argument = commandArgs[index];
+  for (
+    let index = 0;
+    index < commandArgs.length;
+    index += 1
+  ) {
+    const argument =
+      commandArgs[index];
 
     if (argument === "--force") {
       force = true;
@@ -333,7 +446,8 @@ function installCommand(commandArgs) {
     }
 
     if (argument === "--target") {
-      const nextArgument = commandArgs[index + 1];
+      const nextArgument =
+        commandArgs[index + 1];
 
       if (!nextArgument) {
         error(
@@ -344,7 +458,9 @@ function installCommand(commandArgs) {
         return;
       }
 
-      targetDirectory = nextArgument;
+      targetDirectory =
+        nextArgument;
+
       index += 1;
     }
   }
@@ -378,7 +494,9 @@ function installCommand(commandArgs) {
       `  destination: ${result.destination}\n`
     );
   } catch (installationError) {
-    error(installationError.message);
+    error(
+      installationError.message
+    );
 
     process.exitCode = 1;
   }
@@ -391,7 +509,10 @@ function showVersion() {
   );
 
   const packageJson = JSON.parse(
-    fs.readFileSync(packagePath, "utf8")
+    fs.readFileSync(
+      packagePath,
+      "utf8"
+    )
   );
 
   print(packageJson.version);
@@ -406,6 +527,10 @@ switch (command) {
     searchSkills(
       args.slice(1).join(" ")
     );
+    break;
+
+  case "info":
+    showSkillInfo(args[1]);
     break;
 
   case "install":
@@ -428,7 +553,11 @@ switch (command) {
     break;
 
   default:
-    error(`Unknown command: ${command}`);
+    error(
+      `Unknown command: ${command}`
+    );
+
     commandHelp();
+
     process.exitCode = 1;
 }
