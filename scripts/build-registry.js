@@ -8,7 +8,10 @@ const root = path.resolve(__dirname, "..");
 
 const skillsDir = path.join(root, "skills");
 const registryDir = path.join(root, "registry");
-const registryFile = path.join(registryDir, "skills.json");
+const registryFile = path.join(
+  registryDir,
+  "skills.json"
+);
 
 function walk(dir) {
   if (!fs.existsSync(dir)) {
@@ -20,11 +23,17 @@ function walk(dir) {
   for (const entry of fs.readdirSync(dir, {
     withFileTypes: true
   })) {
-    const fullPath = path.join(dir, entry.name);
+    const fullPath = path.join(
+      dir,
+      entry.name
+    );
 
     if (entry.isDirectory()) {
       results.push(...walk(fullPath));
-    } else if (entry.name === "SKILL.md") {
+      continue;
+    }
+
+    if (entry.name === "SKILL.md") {
       results.push(fullPath);
     }
   }
@@ -37,13 +46,19 @@ function parseFrontmatter(content) {
     return null;
   }
 
-  const end = content.indexOf("\n---", 3);
+  const end = content.indexOf(
+    "\n---",
+    3
+  );
 
   if (end === -1) {
     return null;
   }
 
-  const raw = content.slice(3, end).trim();
+  const raw = content
+    .slice(3, end)
+    .trim();
+
   const data = {};
 
   for (const line of raw.split(/\r?\n/)) {
@@ -53,8 +68,13 @@ function parseFrontmatter(content) {
       continue;
     }
 
-    const key = line.slice(0, separator).trim();
-    const value = line.slice(separator + 1).trim();
+    const key = line
+      .slice(0, separator)
+      .trim();
+
+    const value = line
+      .slice(separator + 1)
+      .trim();
 
     data[key] = value;
   }
@@ -71,8 +91,13 @@ const skillFiles = walk(skillsDir);
 const skills = [];
 
 for (const file of skillFiles) {
-  const content = fs.readFileSync(file, "utf8");
-  const frontmatter = parseFrontmatter(content);
+  const content = fs.readFileSync(
+    file,
+    "utf8"
+  );
+
+  const frontmatter =
+    parseFrontmatter(content);
 
   if (!frontmatter) {
     continue;
@@ -95,21 +120,42 @@ skills.sort((a, b) =>
   a.name.localeCompare(b.name)
 );
 
+const categories = {};
+
+for (const skill of skills) {
+  categories[skill.category] =
+    (categories[skill.category] || 0) + 1;
+}
+
+const sortedCategories = Object.fromEntries(
+  Object.entries(categories).sort(
+    ([a], [b]) => a.localeCompare(b)
+  )
+);
+
 const registry = {
   schemaVersion: 1,
-  generatedAt: new Date().toISOString(),
   totalSkills: skills.length,
+  categories: sortedCategories,
   skills
 };
 
 fs.writeFileSync(
   registryFile,
-  JSON.stringify(registry, null, 2) + "\n",
+  JSON.stringify(
+    registry,
+    null,
+    2
+  ) + "\n",
   "utf8"
 );
 
 console.log(
   `Registry built successfully: ${skills.length} skill(s).`
+);
+
+console.log(
+  `Categories: ${Object.keys(sortedCategories).length}`
 );
 
 console.log(
