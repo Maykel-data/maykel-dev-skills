@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "skills": {
+    "sqlite-debugging": {
+      "version": "0.1.0",
+      "source": "maykel-dev-skills"
+    },
+    "surgical-fix": {
+      "version": "0.1.0",
+      "source": "maykel-dev-skills"
+    }
+  }
+}
