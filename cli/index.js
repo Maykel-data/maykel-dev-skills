@@ -23,15 +23,27 @@ import {
 
 import {
   readLockfile,
-  getLockfilePath
+  getLockfilePath,
+  checkLockfile
 } from "./lockfile.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const root = path.resolve(__dirname, "..");
+const __filename =
+  fileURLToPath(import.meta.url);
 
-const args = process.argv.slice(2);
-const command = args[0] || "help";
+const __dirname =
+  path.dirname(__filename);
+
+const root =
+  path.resolve(
+    __dirname,
+    ".."
+  );
+
+const args =
+  process.argv.slice(2);
+
+const command =
+  args[0] || "help";
 
 const colors = {
   reset: "\x1b[0m",
@@ -59,10 +71,11 @@ function error(message) {
 }
 
 function getSkillFiles() {
-  const skillsDir = path.join(
-    root,
-    "skills"
-  );
+  const skillsDir =
+    path.join(
+      root,
+      "skills"
+    );
 
   const results = [];
 
@@ -77,10 +90,11 @@ function getSkillFiles() {
         withFileTypes: true
       }
     )) {
-      const fullPath = path.join(
-        directory,
-        entry.name
-      );
+      const fullPath =
+        path.join(
+          directory,
+          entry.name
+        );
 
       if (entry.isDirectory()) {
         walk(fullPath);
@@ -99,33 +113,38 @@ function getSkillFiles() {
 }
 
 function parseSkill(filePath) {
-  const content = fs.readFileSync(
-    filePath,
-    "utf8"
-  );
+  const content =
+    fs.readFileSync(
+      filePath,
+      "utf8"
+    );
 
   if (!content.startsWith("---")) {
     return null;
   }
 
-  const end = content.indexOf(
-    "\n---",
-    3
-  );
+  const end =
+    content.indexOf(
+      "\n---",
+      3
+    );
 
   if (end === -1) {
     return null;
   }
 
-  const frontmatter = content
-    .slice(3, end)
-    .trim();
+  const frontmatter =
+    content
+      .slice(3, end)
+      .trim();
 
   const data = {};
 
-  for (const line of frontmatter.split(
-    /\r?\n/
-  )) {
+  for (
+    const line of frontmatter.split(
+      /\r?\n/
+    )
+  ) {
     const separator =
       line.indexOf(":");
 
@@ -133,15 +152,23 @@ function parseSkill(filePath) {
       continue;
     }
 
-    const key = line
-      .slice(0, separator)
-      .trim();
+    const key =
+      line
+        .slice(
+          0,
+          separator
+        )
+        .trim();
 
-    const value = line
-      .slice(separator + 1)
-      .trim();
+    const value =
+      line
+        .slice(
+          separator + 1
+        )
+        .trim();
 
-    data[key] = value;
+    data[key] =
+      value;
   }
 
   return data;
@@ -181,6 +208,9 @@ Commands:
 
   lock
       Show skills recorded in skills-lock.json.
+
+  lock --check
+      Verify skills against skills-lock.json.
 
   validate
       Validate all skills in the repository.
@@ -223,6 +253,8 @@ Examples:
 
   npx maykel-dev-skills lock
 
+  npx maykel-dev-skills lock --check
+
   npx maykel-dev-skills validate
 
   npx maykel-dev-skills doctor
@@ -230,10 +262,14 @@ Examples:
 }
 
 function listSkills() {
-  const files = getSkillFiles();
+  const files =
+    getSkillFiles();
 
   if (files.length === 0) {
-    print("No skills found.");
+    print(
+      "No skills found."
+    );
+
     return;
   }
 
@@ -242,15 +278,23 @@ function listSkills() {
   );
 
   for (const file of files) {
-    const skill = parseSkill(file);
+    const skill =
+      parseSkill(file);
 
     if (!skill) {
       continue;
     }
 
-    const relativePath = path
-      .relative(root, file)
-      .replaceAll("\\", "/");
+    const relativePath =
+      path
+        .relative(
+          root,
+          file
+        )
+        .replaceAll(
+          "\\",
+          "/"
+        );
 
     print(
       `  ${colors.cyan}${skill.name}${colors.reset} — ${skill.description}`
@@ -277,34 +321,39 @@ function searchSkills(query) {
     );
 
     process.exitCode = 1;
+
     return;
   }
 
   const normalizedQuery =
     query.toLowerCase();
 
-  const matches = getSkillFiles()
-    .map((file) => ({
-      file,
-      skill: parseSkill(file)
-    }))
-    .filter(({ skill }) => {
-      if (!skill) {
-        return false;
-      }
+  const matches =
+    getSkillFiles()
+      .map((file) => ({
+        file,
+        skill:
+          parseSkill(file)
+      }))
+      .filter(
+        ({ skill }) => {
+          if (!skill) {
+            return false;
+          }
 
-      const searchableText = [
-        skill.name,
-        skill.description,
-        skill.category
-      ]
-        .join(" ")
-        .toLowerCase();
+          const searchableText = [
+            skill.name,
+            skill.description,
+            skill.category
+          ]
+            .join(" ")
+            .toLowerCase();
 
-      return searchableText.includes(
-        normalizedQuery
+          return searchableText.includes(
+            normalizedQuery
+          );
+        }
       );
-    });
 
   print(
     `\n${colors.bold}Search results for "${query}"${colors.reset}\n`
@@ -318,7 +367,12 @@ function searchSkills(query) {
     return;
   }
 
-  for (const { file, skill } of matches) {
+  for (
+    const {
+      file,
+      skill
+    } of matches
+  ) {
     print(
       `  ${colors.green}${skill.name}${colors.reset} — ${skill.description}`
     );
@@ -329,8 +383,14 @@ function searchSkills(query) {
 
     print(
       `    ${path
-        .relative(root, file)
-        .replaceAll("\\", "/")}\n`
+        .relative(
+          root,
+          file
+        )
+        .replaceAll(
+          "\\",
+          "/"
+        )}\n`
     );
   }
 }
@@ -346,10 +406,14 @@ function showSkillInfo(skillName) {
     );
 
     process.exitCode = 1;
+
     return;
   }
 
-  const result = findSkill(skillName);
+  const result =
+    findSkill(
+      skillName
+    );
 
   if (!result) {
     error(
@@ -357,17 +421,26 @@ function showSkillInfo(skillName) {
     );
 
     process.exitCode = 1;
+
     return;
   }
 
-  const skillFile = path.join(
-    result.directory,
-    "SKILL.md"
-  );
+  const skillFile =
+    path.join(
+      result.directory,
+      "SKILL.md"
+    );
 
-  const relativePath = path
-    .relative(root, skillFile)
-    .replaceAll("\\", "/");
+  const relativePath =
+    path
+      .relative(
+        root,
+        skillFile
+      )
+      .replaceAll(
+        "\\",
+        "/"
+      );
 
   print(
     `\n${colors.bold}${result.skill.name}${colors.reset}\n`
@@ -391,10 +464,14 @@ function showSkillInfo(skillName) {
 }
 
 function listSkillProfiles() {
-  const profiles = listProfiles(root);
+  const profiles =
+    listProfiles(root);
 
   if (profiles.length === 0) {
-    print("No profiles found.");
+    print(
+      "No profiles found."
+    );
+
     return;
   }
 
@@ -402,7 +479,9 @@ function listSkillProfiles() {
     `\n${colors.bold}Available Profiles${colors.reset}\n`
   );
 
-  for (const profile of profiles) {
+  for (
+    const profile of profiles
+  ) {
     print(
       `  ${colors.cyan}${profile.name}${colors.reset} — ${profile.description}`
     );
@@ -411,7 +490,9 @@ function listSkillProfiles() {
       `    skills: ${profile.skills.length}`
     );
 
-    for (const skillName of profile.skills) {
+    for (
+      const skillName of profile.skills
+    ) {
       print(
         `      - ${skillName}`
       );
@@ -423,7 +504,9 @@ function listSkillProfiles() {
   }
 }
 
-function showProfileInfo(profileName) {
+function showProfileInfo(
+  profileName
+) {
   if (!profileName) {
     error(
       "Please provide a profile name."
@@ -434,13 +517,15 @@ function showProfileInfo(profileName) {
     );
 
     process.exitCode = 1;
+
     return;
   }
 
-  const profile = findProfile(
-    root,
-    profileName
-  );
+  const profile =
+    findProfile(
+      root,
+      profileName
+    );
 
   if (!profile) {
     error(
@@ -448,6 +533,7 @@ function showProfileInfo(profileName) {
     );
 
     process.exitCode = 1;
+
     return;
   }
 
@@ -463,8 +549,13 @@ function showProfileInfo(profileName) {
     `  Skills:      ${profile.skills.length}`
   );
 
-  for (const skillName of profile.skills) {
-    const skill = findSkill(skillName);
+  for (
+    const skillName of profile.skills
+  ) {
+    const skill =
+      findSkill(
+        skillName
+      );
 
     if (skill) {
       print(
@@ -487,7 +578,9 @@ function showProfileInfo(profileName) {
 function showLockfile() {
   try {
     const lockfile =
-      readLockfile(process.cwd());
+      readLockfile(
+        process.cwd()
+      );
 
     const entries =
       Object.entries(
@@ -506,10 +599,12 @@ function showLockfile() {
       return;
     }
 
-    for (const [
-      skillName,
-      entry
-    ] of entries) {
+    for (
+      const [
+        skillName,
+        entry
+      ] of entries
+    ) {
       print(
         `  ${colors.green}✓${colors.reset} ${skillName}@${entry.version}`
       );
@@ -527,9 +622,115 @@ function showLockfile() {
             process.cwd()
           )
         )
-        .replaceAll("\\", "/")}\n`
+        .replaceAll(
+          "\\",
+          "/"
+        )}\n`
     );
-  } catch (lockfileError) {
+  } catch (
+    lockfileError
+  ) {
+    error(
+      lockfileError.message
+    );
+
+    process.exitCode = 1;
+  }
+}
+
+function getAvailableSkills() {
+  return getSkillFiles()
+    .map((file) =>
+      parseSkill(file)
+    )
+    .filter(Boolean);
+}
+
+function showLockfileCheck() {
+  try {
+    const result =
+      checkLockfile(
+        process.cwd(),
+        getAvailableSkills()
+      );
+
+    print(
+      `\n${colors.bold}Lockfile Check${colors.reset}\n`
+    );
+
+    if (result.valid) {
+      success(
+        "Lockfile is in sync with available skills."
+      );
+
+      print();
+
+      return;
+    }
+
+    if (
+      result.missing.length > 0
+    ) {
+      print(
+        `${colors.red}Missing locked skills:${colors.reset}`
+      );
+
+      for (
+        const skillName of result.missing
+      ) {
+        print(
+          `  - ${skillName}`
+        );
+      }
+
+      print();
+    }
+
+    if (
+      result.versionMismatches.length > 0
+    ) {
+      print(
+        `${colors.red}Version mismatches:${colors.reset}`
+      );
+
+      for (
+        const mismatch of
+          result.versionMismatches
+      ) {
+        print(
+          `  - ${mismatch.name}: locked ${mismatch.locked}, available ${mismatch.available}`
+        );
+      }
+
+      print();
+    }
+
+    if (
+      result.extra.length > 0
+    ) {
+      print(
+        `${colors.yellow}Available but not locked:${colors.reset}`
+      );
+
+      for (
+        const skillName of result.extra
+      ) {
+        print(
+          `  - ${skillName}`
+        );
+      }
+
+      print();
+    }
+
+    error(
+      "Lockfile check failed."
+    );
+
+    process.exitCode = 1;
+  } catch (
+    lockfileError
+  ) {
     error(
       lockfileError.message
     );
@@ -544,7 +745,9 @@ function installSkillProfile(
   const profileName =
     profileArgs.find(
       (argument) =>
-        !argument.startsWith("--")
+        !argument.startsWith(
+          "--"
+        )
     );
 
   if (!profileName) {
@@ -557,6 +760,7 @@ function installSkillProfile(
     );
 
     process.exitCode = 1;
+
     return;
   }
 
@@ -573,14 +777,21 @@ function installSkillProfile(
     const argument =
       profileArgs[index];
 
-    if (argument === "--force") {
+    if (
+      argument === "--force"
+    ) {
       force = true;
+
       continue;
     }
 
-    if (argument === "--target") {
+    if (
+      argument === "--target"
+    ) {
       const nextArgument =
-        profileArgs[index + 1];
+        profileArgs[
+          index + 1
+        ];
 
       if (!nextArgument) {
         error(
@@ -588,6 +799,7 @@ function installSkillProfile(
         );
 
         process.exitCode = 1;
+
         return;
       }
 
@@ -625,7 +837,9 @@ function installSkillProfile(
       `  skills: ${result.skills.length}`
     );
 
-    for (const skill of result.skills) {
+    for (
+      const skill of result.skills
+    ) {
       print(
         `    ${colors.green}✓${colors.reset} ${skill.name}@${skill.version}`
       );
@@ -636,7 +850,9 @@ function installSkillProfile(
     }
 
     print();
-  } catch (installationError) {
+  } catch (
+    installationError
+  ) {
     error(
       installationError.message
     );
@@ -661,22 +877,31 @@ function runProfileCommand(
     );
 
     process.exitCode = 1;
+
     return;
   }
 
-  if (subcommand === "list") {
+  if (
+    subcommand === "list"
+  ) {
     listSkillProfiles();
+
     return;
   }
 
-  if (subcommand === "info") {
+  if (
+    subcommand === "info"
+  ) {
     showProfileInfo(
       profileArgs[1]
     );
+
     return;
   }
 
-  if (subcommand === "install") {
+  if (
+    subcommand === "install"
+  ) {
     installSkillProfile(
       profileArgs.slice(1)
     );
@@ -700,29 +925,36 @@ function runValidation() {
     `\n${colors.bold}Validating skills...${colors.reset}\n`
   );
 
-  const validatorPath = path.join(
-    root,
-    "scripts",
-    "validate-skills.js"
-  );
+  const validatorPath =
+    path.join(
+      root,
+      "scripts",
+      "validate-skills.js"
+    );
 
-  if (!fs.existsSync(validatorPath)) {
+  if (
+    !fs.existsSync(
+      validatorPath
+    )
+  ) {
     error(
       "Validator script not found."
     );
 
     process.exitCode = 1;
+
     return;
   }
 
-  const result = spawnSync(
-    process.execPath,
-    [validatorPath],
-    {
-      cwd: root,
-      stdio: "inherit"
-    }
-  );
+  const result =
+    spawnSync(
+      process.execPath,
+      [validatorPath],
+      {
+        cwd: root,
+        stdio: "inherit"
+      }
+    );
 
   if (result.error) {
     error(
@@ -730,10 +962,13 @@ function runValidation() {
     );
 
     process.exitCode = 1;
+
     return;
   }
 
-  if (result.status === 0) {
+  if (
+    result.status === 0
+  ) {
     success(
       "All skills passed validation."
     );
@@ -757,9 +992,12 @@ function runDoctor() {
   const doctor =
     createDoctor(root);
 
-  const checks = doctor.run();
+  const checks =
+    doctor.run();
 
-  for (const check of checks) {
+  for (
+    const check of checks
+  ) {
     if (check.passed) {
       success(
         `${check.name}${check.details ? ` — ${check.details}` : ""}`
@@ -773,12 +1011,15 @@ function runDoctor() {
 
   const failedChecks =
     checks.filter(
-      (check) => !check.passed
+      (check) =>
+        !check.passed
     );
 
   print();
 
-  if (failedChecks.length === 0) {
+  if (
+    failedChecks.length === 0
+  ) {
     success(
       "Doctor check passed."
     );
@@ -799,7 +1040,9 @@ function installCommand(
   const skillName =
     commandArgs.find(
       (argument) =>
-        !argument.startsWith("--")
+        !argument.startsWith(
+          "--"
+        )
     );
 
   if (!skillName) {
@@ -812,6 +1055,7 @@ function installCommand(
     );
 
     process.exitCode = 1;
+
     return;
   }
 
@@ -828,14 +1072,21 @@ function installCommand(
     const argument =
       commandArgs[index];
 
-    if (argument === "--force") {
+    if (
+      argument === "--force"
+    ) {
       force = true;
+
       continue;
     }
 
-    if (argument === "--target") {
+    if (
+      argument === "--target"
+    ) {
       const nextArgument =
-        commandArgs[index + 1];
+        commandArgs[
+          index + 1
+        ];
 
       if (!nextArgument) {
         error(
@@ -843,6 +1094,7 @@ function installCommand(
         );
 
         process.exitCode = 1;
+
         return;
       }
 
@@ -854,13 +1106,14 @@ function installCommand(
   }
 
   try {
-    const result = installSkill(
-      skillName,
-      targetDirectory,
-      {
-        force
-      }
-    );
+    const result =
+      installSkill(
+        skillName,
+        targetDirectory,
+        {
+          force
+        }
+      );
 
     print(
       `\n${colors.bold}Installing skill${colors.reset}\n`
@@ -881,7 +1134,9 @@ function installCommand(
     print(
       `  destination: ${result.destination}\n`
     );
-  } catch (installationError) {
+  } catch (
+    installationError
+  ) {
     error(
       installationError.message
     );
@@ -891,19 +1146,23 @@ function installCommand(
 }
 
 function showVersion() {
-  const packagePath = path.join(
-    root,
-    "package.json"
-  );
+  const packagePath =
+    path.join(
+      root,
+      "package.json"
+    );
 
-  const packageJson = JSON.parse(
-    fs.readFileSync(
-      packagePath,
-      "utf8"
-    )
-  );
+  const packageJson =
+    JSON.parse(
+      fs.readFileSync(
+        packagePath,
+        "utf8"
+      )
+    );
 
-  print(packageJson.version);
+  print(
+    packageJson.version
+  );
 }
 
 switch (command) {
@@ -913,12 +1172,16 @@ switch (command) {
 
   case "search":
     searchSkills(
-      args.slice(1).join(" ")
+      args
+        .slice(1)
+        .join(" ")
     );
     break;
 
   case "info":
-    showSkillInfo(args[1]);
+    showSkillInfo(
+      args[1]
+    );
     break;
 
   case "install":
@@ -934,7 +1197,14 @@ switch (command) {
     break;
 
   case "lock":
-    showLockfile();
+    if (
+      args[1] === "--check"
+    ) {
+      showLockfileCheck();
+    } else {
+      showLockfile();
+    }
+
     break;
 
   case "validate":

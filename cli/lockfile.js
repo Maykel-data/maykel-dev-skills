@@ -13,7 +13,8 @@ function getLockfilePath(root) {
 
 function createEmptyLockfile() {
   return {
-    schemaVersion: LOCKFILE_SCHEMA_VERSION,
+    schemaVersion:
+      LOCKFILE_SCHEMA_VERSION,
     skills: {}
   };
 }
@@ -26,13 +27,22 @@ function readLockfile(root) {
     return createEmptyLockfile();
   }
 
-  const content = fs.readFileSync(
-    lockfilePath,
-    "utf8"
-  );
+  const content =
+    fs.readFileSync(
+      lockfilePath,
+      "utf8"
+    );
 
-  const lockfile =
-    JSON.parse(content);
+  let lockfile;
+
+  try {
+    lockfile =
+      JSON.parse(content);
+  } catch {
+    throw new Error(
+      "Invalid lockfile: file contains invalid JSON."
+    );
+  }
 
   if (
     lockfile.schemaVersion !==
@@ -45,9 +55,11 @@ function readLockfile(root) {
 
   if (
     typeof lockfile.skills !==
-    "object" ||
+      "object" ||
     lockfile.skills === null ||
-    Array.isArray(lockfile.skills)
+    Array.isArray(
+      lockfile.skills
+    )
   ) {
     throw new Error(
       "Invalid lockfile: skills must be an object."
@@ -57,7 +69,10 @@ function readLockfile(root) {
   return lockfile;
 }
 
-function writeLockfile(root, lockfile) {
+function writeLockfile(
+  root,
+  lockfile
+) {
   if (
     !lockfile ||
     lockfile.schemaVersion !==
@@ -72,7 +87,9 @@ function writeLockfile(root, lockfile) {
     typeof lockfile.skills !==
       "object" ||
     lockfile.skills === null ||
-    Array.isArray(lockfile.skills)
+    Array.isArray(
+      lockfile.skills
+    )
   ) {
     throw new Error(
       "Invalid lockfile: skills must be an object."
@@ -114,17 +131,21 @@ function addSkillToLockfile(
   const lockfile =
     readLockfile(root);
 
-  lockfile.skills[skill.name] = {
+  lockfile.skills[
+    skill.name
+  ] = {
     version: skill.version,
-    source: "maykel-dev-skills"
+    source:
+      "maykel-dev-skills"
   };
 
   const sortedSkills =
     Object.fromEntries(
       Object.entries(
         lockfile.skills
-      ).sort(([a], [b]) =>
-        a.localeCompare(b)
+      ).sort(
+        ([a], [b]) =>
+          a.localeCompare(b)
       )
     );
 
@@ -154,8 +175,9 @@ function removeSkillFromLockfile(
     Object.fromEntries(
       Object.entries(
         lockfile.skills
-      ).sort(([a], [b]) =>
-        a.localeCompare(b)
+      ).sort(
+        ([a], [b]) =>
+          a.localeCompare(b)
       )
     );
 
@@ -170,6 +192,118 @@ function removeSkillFromLockfile(
   return lockfile;
 }
 
+function checkLockfile(
+  root,
+  availableSkills
+) {
+  const lockfile =
+    readLockfile(root);
+
+  if (
+    !Array.isArray(
+      availableSkills
+    )
+  ) {
+    throw new Error(
+      "Available skills must be an array."
+    );
+  }
+
+  const availableMap =
+    new Map();
+
+  for (
+    const skill of availableSkills
+  ) {
+    if (
+      !skill ||
+      typeof skill.name !==
+        "string" ||
+      typeof skill.version !==
+        "string"
+    ) {
+      continue;
+    }
+
+    availableMap.set(
+      skill.name,
+      skill
+    );
+  }
+
+  const missing = [];
+  const versionMismatches = [];
+  const extra = [];
+
+  for (
+    const [
+      skillName,
+      lockedSkill
+    ] of Object.entries(
+      lockfile.skills
+    )
+  ) {
+    const availableSkill =
+      availableMap.get(
+        skillName
+      );
+
+    if (!availableSkill) {
+      missing.push(
+        skillName
+      );
+
+      continue;
+    }
+
+    if (
+      availableSkill.version !==
+      lockedSkill.version
+    ) {
+      versionMismatches.push({
+        name: skillName,
+        locked:
+          lockedSkill.version,
+        available:
+          availableSkill.version
+      });
+    }
+  }
+
+  for (
+    const skill of availableSkills
+  ) {
+    if (
+      !skill ||
+      typeof skill.name !==
+        "string"
+    ) {
+      continue;
+    }
+
+    if (
+      !Object.hasOwn(
+        lockfile.skills,
+        skill.name
+      )
+    ) {
+      extra.push(
+        skill.name
+      );
+    }
+  }
+
+  return {
+    valid:
+      missing.length === 0 &&
+      versionMismatches.length === 0 &&
+      extra.length === 0,
+    missing,
+    versionMismatches,
+    extra
+  };
+}
+
 export {
   LOCKFILE_NAME,
   LOCKFILE_SCHEMA_VERSION,
@@ -178,5 +312,6 @@ export {
   readLockfile,
   writeLockfile,
   addSkillToLockfile,
-  removeSkillFromLockfile
+  removeSkillFromLockfile,
+  checkLockfile
 };

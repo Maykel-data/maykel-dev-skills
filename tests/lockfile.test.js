@@ -12,7 +12,8 @@ import {
   readLockfile,
   writeLockfile,
   addSkillToLockfile,
-  removeSkillFromLockfile
+  removeSkillFromLockfile,
+  checkLockfile
 } from "../cli/lockfile.js";
 
 test("creates an empty lockfile structure", () => {
@@ -105,7 +106,8 @@ test("writes and reads a lockfile", () => {
       skills: {
         "surgical-fix": {
           version: "0.1.0",
-          source: "maykel-dev-skills"
+          source:
+            "maykel-dev-skills"
         }
       }
     };
@@ -318,6 +320,253 @@ test("rejects an unsupported lockfile schema", () => {
           temporaryDirectory
         ),
       /Unsupported lockfile schema version: 999/
+    );
+  } finally {
+    fs.rmSync(
+      temporaryDirectory,
+      {
+        recursive: true,
+        force: true
+      }
+    );
+  }
+});
+
+test("validates a matching lockfile", () => {
+  const temporaryDirectory =
+    fs.mkdtempSync(
+      path.join(
+        os.tmpdir(),
+        "maykel-dev-lockfile-"
+      )
+    );
+
+  try {
+    addSkillToLockfile(
+      temporaryDirectory,
+      {
+        name: "surgical-fix",
+        version: "0.1.0"
+      }
+    );
+
+    addSkillToLockfile(
+      temporaryDirectory,
+      {
+        name: "sqlite-debugging",
+        version: "0.1.0"
+      }
+    );
+
+    const result =
+      checkLockfile(
+        temporaryDirectory,
+        [
+          {
+            name: "surgical-fix",
+            version: "0.1.0"
+          },
+          {
+            name: "sqlite-debugging",
+            version: "0.1.0"
+          }
+        ]
+      );
+
+    assert.deepEqual(
+      result,
+      {
+        valid: true,
+        missing: [],
+        versionMismatches: [],
+        extra: []
+      }
+    );
+  } finally {
+    fs.rmSync(
+      temporaryDirectory,
+      {
+        recursive: true,
+        force: true
+      }
+    );
+  }
+});
+
+test("detects a missing locked skill", () => {
+  const temporaryDirectory =
+    fs.mkdtempSync(
+      path.join(
+        os.tmpdir(),
+        "maykel-dev-lockfile-"
+      )
+    );
+
+  try {
+    addSkillToLockfile(
+      temporaryDirectory,
+      {
+        name: "surgical-fix",
+        version: "0.1.0"
+      }
+    );
+
+    const result =
+      checkLockfile(
+        temporaryDirectory,
+        []
+      );
+
+    assert.equal(
+      result.valid,
+      false
+    );
+
+    assert.deepEqual(
+      result.missing,
+      [
+        "surgical-fix"
+      ]
+    );
+
+    assert.deepEqual(
+      result.versionMismatches,
+      []
+    );
+
+    assert.deepEqual(
+      result.extra,
+      []
+    );
+  } finally {
+    fs.rmSync(
+      temporaryDirectory,
+      {
+        recursive: true,
+        force: true
+      }
+    );
+  }
+});
+
+test("detects a version mismatch", () => {
+  const temporaryDirectory =
+    fs.mkdtempSync(
+      path.join(
+        os.tmpdir(),
+        "maykel-dev-lockfile-"
+      )
+    );
+
+  try {
+    addSkillToLockfile(
+      temporaryDirectory,
+      {
+        name: "surgical-fix",
+        version: "0.1.0"
+      }
+    );
+
+    const result =
+      checkLockfile(
+        temporaryDirectory,
+        [
+          {
+            name: "surgical-fix",
+            version: "0.2.0"
+          }
+        ]
+      );
+
+    assert.equal(
+      result.valid,
+      false
+    );
+
+    assert.deepEqual(
+      result.missing,
+      []
+    );
+
+    assert.deepEqual(
+      result.versionMismatches,
+      [
+        {
+          name: "surgical-fix",
+          locked: "0.1.0",
+          available: "0.2.0"
+        }
+      ]
+    );
+
+    assert.deepEqual(
+      result.extra,
+      []
+    );
+  } finally {
+    fs.rmSync(
+      temporaryDirectory,
+      {
+        recursive: true,
+        force: true
+      }
+    );
+  }
+});
+
+test("detects an unlocked available skill", () => {
+  const temporaryDirectory =
+    fs.mkdtempSync(
+      path.join(
+        os.tmpdir(),
+        "maykel-dev-lockfile-"
+      )
+    );
+
+  try {
+    addSkillToLockfile(
+      temporaryDirectory,
+      {
+        name: "surgical-fix",
+        version: "0.1.0"
+      }
+    );
+
+    const result =
+      checkLockfile(
+        temporaryDirectory,
+        [
+          {
+            name: "surgical-fix",
+            version: "0.1.0"
+          },
+          {
+            name: "sqlite-debugging",
+            version: "0.1.0"
+          }
+        ]
+      );
+
+    assert.equal(
+      result.valid,
+      false
+    );
+
+    assert.deepEqual(
+      result.missing,
+      []
+    );
+
+    assert.deepEqual(
+      result.versionMismatches,
+      []
+    );
+
+    assert.deepEqual(
+      result.extra,
+      [
+        "sqlite-debugging"
+      ]
     );
   } finally {
     fs.rmSync(
