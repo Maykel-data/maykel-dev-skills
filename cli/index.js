@@ -10,9 +10,11 @@ import {
 } from "./installer.js";
 import { createDoctor } from "./doctor.js";
 import {
-  listProfiles,
-  findProfile
+  listProfiles
 } from "./profiles.js";
+import {
+  installProfile
+} from "./profile-installer.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -162,6 +164,9 @@ Commands:
   profile list
       List available skill profiles.
 
+  profile install <profile>
+      Install all skills in a profile.
+
   validate
       Validate all skills in the repository.
 
@@ -196,6 +201,12 @@ Examples:
   npx maykel-dev-skills install sqlite-debugging
 
   npx maykel-dev-skills profile list
+
+  npx maykel-dev-skills profile install engineering
+
+  npx maykel-dev-skills profile install engineering --target .claude/skills
+
+  npx maykel-dev-skills profile install engineering --force
 
   npx maykel-dev-skills validate
 
@@ -397,7 +408,116 @@ function listSkillProfiles() {
   }
 }
 
-function runProfileCommand(profileArgs) {
+function installSkillProfile(
+  profileArgs
+) {
+  const profileName =
+    profileArgs.find(
+      (argument) =>
+        !argument.startsWith("--")
+    );
+
+  if (!profileName) {
+    error(
+      "Please provide a profile name."
+    );
+
+    print(
+      "\nExample:\n  npx maykel-dev-skills profile install engineering\n"
+    );
+
+    process.exitCode = 1;
+    return;
+  }
+
+  let targetDirectory =
+    ".agents/skills";
+
+  let force = false;
+
+  for (
+    let index = 0;
+    index < profileArgs.length;
+    index += 1
+  ) {
+    const argument =
+      profileArgs[index];
+
+    if (argument === "--force") {
+      force = true;
+      continue;
+    }
+
+    if (argument === "--target") {
+      const nextArgument =
+        profileArgs[index + 1];
+
+      if (!nextArgument) {
+        error(
+          "--target requires a directory."
+        );
+
+        process.exitCode = 1;
+        return;
+      }
+
+      targetDirectory =
+        nextArgument;
+
+      index += 1;
+    }
+  }
+
+  try {
+    const result =
+      installProfile(
+        root,
+        profileName,
+        targetDirectory,
+        {
+          force
+        }
+      );
+
+    print(
+      `\n${colors.bold}Installing profile${colors.reset}\n`
+    );
+
+    success(
+      `${result.name} profile installed.`
+    );
+
+    print(
+      `  description: ${result.description}`
+    );
+
+    print(
+      `  skills: ${result.skills.length}`
+    );
+
+    for (const skill of result.skills) {
+      print(
+        `    ${colors.green}✓${colors.reset} ${skill.name}@${skill.version}`
+      );
+
+      print(
+        `      destination: ${skill.destination}`
+      );
+    }
+
+    print();
+  } catch (installationError) {
+    error(
+      installationError.message
+    );
+
+    process.exitCode = 1;
+  }
+}
+
+function runProfileCommand(
+  profileArgs
+) {
   const subcommand =
     profileArgs[0];
 
@@ -407,7 +527,7 @@ function runProfileCommand(profileArgs) {
     );
 
     print(
-      "\nAvailable profile commands:\n\n  profile list\n"
+      "\nAvailable profile commands:\n\n  profile list\n  profile install <profile>\n"
     );
 
     process.exitCode = 1;
@@ -419,12 +539,20 @@ function runProfileCommand(profileArgs) {
     return;
   }
 
+  if (subcommand === "install") {
+    installSkillProfile(
+      profileArgs.slice(1)
+    );
+
+    return;
+  }
+
   error(
     `Unknown profile command: ${subcommand}`
   );
 
   print(
-    "\nAvailable profile commands:\n\n  profile list\n"
+    "\nAvailable profile commands:\n\n  profile list\n  profile install <profile>\n"
   );
 
   process.exitCode = 1;
@@ -528,11 +656,14 @@ function runDoctor() {
   process.exitCode = 1;
 }
 
-function installCommand(commandArgs) {
-  const skillName = commandArgs.find(
-    (argument) =>
-      !argument.startsWith("--")
-  );
+function installCommand(
+  commandArgs
+) {
+  const skillName =
+    commandArgs.find(
+      (argument) =>
+        !argument.startsWith("--")
+    );
 
   if (!skillName) {
     error(
@@ -654,7 +785,9 @@ switch (command) {
     break;
 
   case "install":
-    installCommand(args.slice(1));
+    installCommand(
+      args.slice(1)
+    );
     break;
 
   case "profile":
