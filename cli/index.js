@@ -4,7 +4,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { findSkill, installSkill } from "./installer.js";
+import {
+  findSkill,
+  installSkill
+} from "./installer.js";
+import { createDoctor } from "./doctor.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -154,6 +158,9 @@ Commands:
   validate
       Validate all skills in the repository.
 
+  doctor
+      Check the health of the project and its tooling.
+
   help
       Show this help message.
 
@@ -190,6 +197,8 @@ Examples:
   npx maykel-dev-skills install sqlite-debugging --force
 
   npx maykel-dev-skills validate
+
+  npx maykel-dev-skills doctor
 `);
 }
 
@@ -408,6 +417,50 @@ function runValidation() {
     result.status ?? 1;
 }
 
+function runDoctor() {
+  print(
+    `\n${colors.bold}Maykel Dev Skills Doctor${colors.reset}\n`
+  );
+
+  const doctor =
+    createDoctor(root);
+
+  const checks = doctor.run();
+
+  for (const check of checks) {
+    if (check.passed) {
+      success(
+        `${check.name}${check.details ? ` — ${check.details}` : ""}`
+      );
+    } else {
+      error(
+        `${check.name}${check.details ? ` — ${check.details}` : ""}`
+      );
+    }
+  }
+
+  const failedChecks =
+    checks.filter(
+      (check) => !check.passed
+    );
+
+  print();
+
+  if (failedChecks.length === 0) {
+    success(
+      "Doctor check passed."
+    );
+
+    return;
+  }
+
+  error(
+    `Doctor found ${failedChecks.length} problem(s).`
+  );
+
+  process.exitCode = 1;
+}
+
 function installCommand(commandArgs) {
   const skillName = commandArgs.find(
     (argument) =>
@@ -539,6 +592,10 @@ switch (command) {
 
   case "validate":
     runValidation();
+    break;
+
+  case "doctor":
+    runDoctor();
     break;
 
   case "help":
