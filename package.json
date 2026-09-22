@@ -1,0 +1,46 @@
+{
+  "name": "maykel-dev-skills",
+  "version": "0.1.0",
+  "description": "Practical agent skills and workflows for real-world software development.",
+  "type": "module",
+  "bin": {
+    "maykel-dev-skills": "./cli/index.js"
+  },
+  "files": [
+    "cli",
+    "skills",
+    "profiles",
+    "registry",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "validate": "node scripts/validate-skills.js",
+    "build:registry": "node scripts/build-registry.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Maykel-data/maykel-dev-skills.git"
+  },
+  "homepage": "https://github.com/Maykel-data/maykel-dev-skills",
+  "bugs": {
+    "url": "https://github.com/Maykel-data/maykel-dev-skills/issues"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "agent-skills",
+    "claude",
+    "codex",
+    "cursor",
+    "developer-tools",
+    "developer-workflows"
+  ],
+  "author": "Maykel",
+  "license": "MIT"
+}
