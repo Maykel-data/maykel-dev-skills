@@ -3,7 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  addSkillToLockfile
+  addSkillToLockfile,
+  readLockfile
 } from "./lockfile.js";
 
 const __filename =
@@ -283,7 +284,134 @@ function installSkill(
   };
 }
 
+function updateInstalledSkills(
+  targetDirectory = defaultTarget,
+  skillName = null
+) {
+  const lockfile =
+    readLockfile(
+      process.cwd()
+    );
+
+  const lockedSkills =
+    Object.entries(
+      lockfile.skills
+    );
+
+  if (
+    lockedSkills.length === 0
+  ) {
+    return {
+      updated: [],
+      current: [],
+      missing: [],
+      skipped: []
+    };
+  }
+
+  const targetRoot =
+    path.resolve(
+      process.cwd(),
+      targetDirectory
+    );
+
+  const updated = [];
+  const current = [];
+  const missing = [];
+  const skipped = [];
+
+  for (
+    const [
+      lockedName,
+      lockedSkill
+    ] of lockedSkills
+  ) {
+    if (
+      skillName &&
+      lockedName !== skillName
+    ) {
+      continue;
+    }
+
+    const installedDirectory =
+      path.join(
+        targetRoot,
+        lockedName
+      );
+
+    if (
+      !fs.existsSync(
+        installedDirectory
+      )
+    ) {
+      missing.push(
+        lockedName
+      );
+
+      continue;
+    }
+
+    const currentSkill =
+      findSkill(
+        lockedName
+      );
+
+    if (!currentSkill) {
+      skipped.push({
+        name: lockedName,
+        reason:
+          "skill is no longer available in the repository"
+      });
+
+      continue;
+    }
+
+    const currentVersion =
+      currentSkill.skill.version;
+
+    if (
+      currentVersion ===
+      lockedSkill.version
+    ) {
+      current.push({
+        name: lockedName,
+        version:
+          currentVersion
+      });
+
+      continue;
+    }
+
+    const result =
+      installSkill(
+        lockedName,
+        targetDirectory,
+        {
+          force: true
+        }
+      );
+
+    updated.push({
+      name: result.name,
+      from:
+        lockedSkill.version,
+      to:
+        result.version,
+      destination:
+        result.destination
+    });
+  }
+
+  return {
+    updated,
+    current,
+    missing,
+    skipped
+  };
+}
+
 export {
   installSkill,
-  findSkill
+  findSkill,
+  updateInstalledSkills
 };

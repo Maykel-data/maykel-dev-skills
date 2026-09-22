@@ -1,16 +1,13 @@
-#!/usr/bin/env node
-
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import {
+  installSkill,
   findSkill,
-  installSkill
+  updateInstalledSkills
 } from "./installer.js";
-
-import { createDoctor } from "./doctor.js";
 
 import {
   listProfiles,
@@ -20,6 +17,10 @@ import {
 import {
   installProfile
 } from "./profile-installer.js";
+
+import {
+  createDoctor
+} from "./doctor.js";
 
 import {
   readLockfile,
@@ -43,25 +44,19 @@ const args =
   process.argv.slice(2);
 
 const command =
-  args[0] || "help";
+  args[0];
 
 const colors = {
   reset: "\x1b[0m",
-  cyan: "\x1b[36m",
+  bold: "\x1b[1m",
+  red: "\x1b[31m",
   green: "\x1b[32m",
   yellow: "\x1b[33m",
-  red: "\x1b[31m",
-  bold: "\x1b[1m"
+  cyan: "\x1b[36m"
 };
 
 function print(message = "") {
   console.log(message);
-}
-
-function success(message) {
-  print(
-    `${colors.green}✓${colors.reset} ${message}`
-  );
 }
 
 function error(message) {
@@ -70,46 +65,66 @@ function error(message) {
   );
 }
 
+function success(message) {
+  print(
+    `${colors.green}✓${colors.reset} ${message}`
+  );
+}
+
 function getSkillFiles() {
-  const skillsDir =
+  const skillsDirectory =
     path.join(
       root,
       "skills"
     );
 
-  const results = [];
+  const files = [];
 
-  if (!fs.existsSync(skillsDir)) {
-    return results;
+  if (
+    !fs.existsSync(
+      skillsDirectory
+    )
+  ) {
+    return files;
   }
 
   function walk(directory) {
-    for (const entry of fs.readdirSync(
-      directory,
-      {
-        withFileTypes: true
-      }
-    )) {
+    for (
+      const entry of fs.readdirSync(
+        directory,
+        {
+          withFileTypes: true
+        }
+      )
+    ) {
       const fullPath =
         path.join(
           directory,
           entry.name
         );
 
-      if (entry.isDirectory()) {
+      if (
+        entry.isDirectory()
+      ) {
         walk(fullPath);
         continue;
       }
 
-      if (entry.name === "SKILL.md") {
-        results.push(fullPath);
+      if (
+        entry.name === "SKILL.md"
+      ) {
+        files.push(
+          fullPath
+        );
       }
     }
   }
 
-  walk(skillsDir);
+  walk(
+    skillsDirectory
+  );
 
-  return results;
+  return files.sort();
 }
 
 function parseSkill(filePath) {
@@ -119,7 +134,9 @@ function parseSkill(filePath) {
       "utf8"
     );
 
-  if (!content.startsWith("---")) {
+  if (
+    !content.startsWith("---")
+  ) {
     return null;
   }
 
@@ -135,7 +152,10 @@ function parseSkill(filePath) {
 
   const frontmatter =
     content
-      .slice(3, end)
+      .slice(
+        3,
+        end
+      )
       .trim();
 
   const data = {};
@@ -148,7 +168,9 @@ function parseSkill(filePath) {
     const separator =
       line.indexOf(":");
 
-    if (separator === -1) {
+    if (
+      separator === -1
+    ) {
       continue;
     }
 
@@ -177,10 +199,8 @@ function parseSkill(filePath) {
 function commandHelp() {
   print(`
 ${colors.bold}Maykel Dev Skills${colors.reset}
-Practical agent skills and workflows for real-world software development.
 
 Usage:
-
   npx maykel-dev-skills <command>
 
 Commands:
@@ -192,28 +212,34 @@ Commands:
       Search skills by name, description, or category.
 
   info <skill>
-      Show detailed information about a skill.
+      Show information about a skill.
 
   install <skill>
-      Install a skill into the current project.
+      Install a skill.
+
+  update
+      Update installed skills using skills-lock.json.
+
+  update <skill>
+      Update one installed skill.
 
   profile list
-      List available skill profiles.
+      List available profiles.
 
   profile info <profile>
-      Show detailed information about a profile.
+      Show profile information.
 
   profile install <profile>
-      Install all skills in a profile.
+      Install a complete skill profile.
 
   lock
-      Show skills recorded in skills-lock.json.
+      Show locked skills.
 
   lock --check
-      Verify skills against skills-lock.json.
+      Check lockfile consistency.
 
   validate
-      Validate all skills in the repository.
+      Validate all skills.
 
   doctor
       Check the health of the project and its tooling.
@@ -245,6 +271,10 @@ Examples:
 
   npx maykel-dev-skills install sqlite-debugging
 
+  npx maykel-dev-skills update
+
+  npx maykel-dev-skills update sqlite-debugging
+
   npx maykel-dev-skills profile list
 
   npx maykel-dev-skills profile info engineering
@@ -265,7 +295,9 @@ function listSkills() {
   const files =
     getSkillFiles();
 
-  if (files.length === 0) {
+  if (
+    files.length === 0
+  ) {
     print(
       "No skills found."
     );
@@ -277,7 +309,9 @@ function listSkills() {
     `\n${colors.bold}Available Skills${colors.reset}\n`
   );
 
-  for (const file of files) {
+  for (
+    const file of files
+  ) {
     const skill =
       parseSkill(file);
 
@@ -320,7 +354,8 @@ function searchSkills(query) {
       "\nExample:\n  npx maykel-dev-skills search sqlite\n"
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
 
     return;
   }
@@ -330,11 +365,13 @@ function searchSkills(query) {
 
   const matches =
     getSkillFiles()
-      .map((file) => ({
-        file,
-        skill:
-          parseSkill(file)
-      }))
+      .map(
+        (file) => ({
+          file,
+          skill:
+            parseSkill(file)
+        })
+      )
       .filter(
         ({ skill }) => {
           if (!skill) {
@@ -359,7 +396,9 @@ function searchSkills(query) {
     `\n${colors.bold}Search results for "${query}"${colors.reset}\n`
   );
 
-  if (matches.length === 0) {
+  if (
+    matches.length === 0
+  ) {
     print(
       "No matching skills found.\n"
     );
@@ -405,7 +444,8 @@ function showSkillInfo(skillName) {
       "\nExample:\n  npx maykel-dev-skills info sqlite-debugging\n"
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
 
     return;
   }
@@ -420,7 +460,8 @@ function showSkillInfo(skillName) {
       `Skill "${skillName}" was not found.`
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
 
     return;
   }
@@ -465,9 +506,13 @@ function showSkillInfo(skillName) {
 
 function listSkillProfiles() {
   const profiles =
-    listProfiles(root);
+    listProfiles(
+      root
+    );
 
-  if (profiles.length === 0) {
+  if (
+    profiles.length === 0
+  ) {
     print(
       "No profiles found."
     );
@@ -516,7 +561,8 @@ function showProfileInfo(
       "\nExample:\n  npx maykel-dev-skills profile info engineering\n"
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
 
     return;
   }
@@ -532,7 +578,8 @@ function showProfileInfo(
       `Profile "${profileName}" was not found.`
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
 
     return;
   }
@@ -591,7 +638,9 @@ function showLockfile() {
       `\n${colors.bold}Locked Skills${colors.reset}\n`
     );
 
-    if (entries.length === 0) {
+    if (
+      entries.length === 0
+    ) {
       print(
         "  No skills are currently locked.\n"
       );
@@ -634,14 +683,16 @@ function showLockfile() {
       lockfileError.message
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
   }
 }
 
 function getAvailableSkills() {
   return getSkillFiles()
-    .map((file) =>
-      parseSkill(file)
+    .map(
+      (file) =>
+        parseSkill(file)
     )
     .filter(Boolean);
 }
@@ -658,7 +709,9 @@ function showLockfileCheck() {
       `\n${colors.bold}Lockfile Check${colors.reset}\n`
     );
 
-    if (result.valid) {
+    if (
+      result.valid
+    ) {
       success(
         "Lockfile is in sync with available skills."
       );
@@ -727,7 +780,8 @@ function showLockfileCheck() {
       "Lockfile check failed."
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
   } catch (
     lockfileError
   ) {
@@ -735,7 +789,8 @@ function showLockfileCheck() {
       lockfileError.message
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
   }
 }
 
@@ -759,7 +814,8 @@ function installSkillProfile(
       "\nExample:\n  npx maykel-dev-skills profile install engineering\n"
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
 
     return;
   }
@@ -798,7 +854,8 @@ function installSkillProfile(
           "--target requires a directory."
         );
 
-        process.exitCode = 1;
+        process.exitCode =
+          1;
 
         return;
       }
@@ -857,7 +914,8 @@ function installSkillProfile(
       installationError.message
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
   }
 }
 
@@ -876,7 +934,8 @@ function runProfileCommand(
       "\nAvailable profile commands:\n\n  profile list\n  profile info <profile>\n  profile install <profile>\n"
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
 
     return;
   }
@@ -917,7 +976,8 @@ function runProfileCommand(
     "\nAvailable profile commands:\n\n  profile list\n  profile info <profile>\n  profile install <profile>\n"
   );
 
-  process.exitCode = 1;
+  process.exitCode =
+    1;
 }
 
 function runValidation() {
@@ -941,7 +1001,8 @@ function runValidation() {
       "Validator script not found."
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
 
     return;
   }
@@ -956,12 +1017,15 @@ function runValidation() {
       }
     );
 
-  if (result.error) {
+  if (
+    result.error
+  ) {
     error(
       `Failed to run validator: ${result.error.message}`
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
 
     return;
   }
@@ -990,7 +1054,9 @@ function runDoctor() {
   );
 
   const doctor =
-    createDoctor(root);
+    createDoctor(
+      root
+    );
 
   const checks =
     doctor.run();
@@ -998,7 +1064,9 @@ function runDoctor() {
   for (
     const check of checks
   ) {
-    if (check.passed) {
+    if (
+      check.passed
+    ) {
       success(
         `${check.name}${check.details ? ` — ${check.details}` : ""}`
       );
@@ -1031,7 +1099,8 @@ function runDoctor() {
     `Doctor found ${failedChecks.length} problem(s).`
   );
 
-  process.exitCode = 1;
+  process.exitCode =
+    1;
 }
 
 function installCommand(
@@ -1054,7 +1123,8 @@ function installCommand(
       "\nExample:\n  npx maykel-dev-skills install sqlite-debugging\n"
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
 
     return;
   }
@@ -1093,7 +1163,8 @@ function installCommand(
           "--target requires a directory."
         );
 
-        process.exitCode = 1;
+        process.exitCode =
+          1;
 
         return;
       }
@@ -1141,30 +1212,158 @@ function installCommand(
       installationError.message
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
   }
 }
 
-function showVersion() {
-  const packagePath =
-    path.join(
-      root,
-      "package.json"
+function updateCommand(
+  commandArgs
+) {
+  const skillName =
+    commandArgs.find(
+      (argument) =>
+        !argument.startsWith("--")
     );
 
-  const packageJson =
-    JSON.parse(
-      fs.readFileSync(
-        packagePath,
-        "utf8"
+  let targetDirectory =
+    ".agents/skills";
+
+  for (
+    let index = 0;
+    index < commandArgs.length;
+    index += 1
+  ) {
+    const argument =
+      commandArgs[index];
+
+    if (
+      argument === "--target"
+    ) {
+      const nextArgument =
+        commandArgs[index + 1];
+
+      if (!nextArgument) {
+        error(
+          "--target requires a directory."
+        );
+
+        process.exitCode = 1;
+
+        return;
+      }
+
+      targetDirectory =
+        nextArgument;
+
+      index += 1;
+    }
+  }
+
+  try {
+    print(
+      `\n${colors.bold}Updating skills${colors.reset}\n`
+    );
+
+    /*
+     * The update command must operate on the
+     * lockfile belonging to the current project.
+     *
+     * Do this check explicitly before calling
+     * updateInstalledSkills().
+     */
+    const lockfilePath =
+      getLockfilePath(
+        process.cwd()
+      );
+
+    if (
+      !fs.existsSync(
+        lockfilePath
       )
+    ) {
+      throw new Error(
+        "Cannot update skills: skills-lock.json was not found."
+      );
+    }
+
+    if (
+      skillName &&
+      !findSkill(
+        skillName
+      )
+    ) {
+      throw new Error(
+        `Skill "${skillName}" was not found.`
+      );
+    }
+
+    const result =
+      updateInstalledSkills(
+        targetDirectory,
+        skillName ?? null
+      );
+
+    if (
+      result.updated.length === 0 &&
+      result.current.length === 0 &&
+      result.missing.length === 0 &&
+      result.skipped.length === 0
+    ) {
+      print(
+        "  No locked skills found.\n"
+      );
+
+      return;
+    }
+
+    for (
+      const skill of result.updated
+    ) {
+      success(
+        `${skill.name}: ${skill.from} → ${skill.to}`
+      );
+
+      print(
+        `  destination: ${skill.destination}`
+      );
+    }
+
+    for (
+      const skill of result.current
+    ) {
+      print(
+        `  ${colors.cyan}✓${colors.reset} ${skill.name}@${skill.version} is already current`
+      );
+    }
+
+    for (
+      const skillName of result.missing
+    ) {
+      print(
+        `  ${colors.yellow}!${colors.reset} ${skillName} is locked but not installed`
+      );
+    }
+
+    for (
+      const skill of result.skipped
+    ) {
+      print(
+        `  ${colors.yellow}!${colors.reset} ${skill.name}: ${skill.reason}`
+      );
+    }
+
+    print();
+  } catch (
+    updateError
+  ) {
+    error(
+      updateError.message
     );
 
-  print(
-    packageJson.version
-  );
+    process.exitCode = 1;
+  }
 }
-
 switch (command) {
   case "list":
     listSkills();
@@ -1186,6 +1385,12 @@ switch (command) {
 
   case "install":
     installCommand(
+      args.slice(1)
+    );
+    break;
+
+  case "update":
+    updateCommand(
       args.slice(1)
     );
     break;
@@ -1233,5 +1438,6 @@ switch (command) {
 
     commandHelp();
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
 }

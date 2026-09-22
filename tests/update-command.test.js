@@ -25,49 +25,48 @@ const cliPath =
     "index.js"
   );
 
-test("lock command shows locked skills", () => {
+function createLockfile(
+  directory
+) {
+  fs.writeFileSync(
+    path.join(
+      directory,
+      "skills-lock.json"
+    ),
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        skills: {
+          "sqlite-debugging": {
+            version: "0.0.9",
+            source:
+              "maykel-dev-skills"
+          }
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+}
+
+test("update command reports when the lockfile is missing", () => {
   const temporaryDirectory =
     fs.mkdtempSync(
       path.join(
         os.tmpdir(),
-        "maykel-dev-lock-command-"
+        "maykel-dev-update-command-"
       )
     );
 
   try {
-    fs.writeFileSync(
-      path.join(
-        temporaryDirectory,
-        "skills-lock.json"
-      ),
-      JSON.stringify(
-        {
-          schemaVersion: 1,
-          skills: {
-            "sqlite-debugging": {
-              version: "0.1.0",
-              source:
-                "maykel-dev-skills"
-            },
-            "surgical-fix": {
-              version: "0.1.0",
-              source:
-                "maykel-dev-skills"
-            }
-          }
-        },
-        null,
-        2
-      ),
-      "utf8"
-    );
-
     const result =
       spawnSync(
         process.execPath,
         [
           cliPath,
-          "lock"
+          "update"
         ],
         {
           cwd: temporaryDirectory,
@@ -75,35 +74,14 @@ test("lock command shows locked skills", () => {
         }
       );
 
-    assert.equal(
+    assert.notEqual(
       result.status,
-      0,
-      result.stderr
+      0
     );
 
     assert.match(
-      result.stdout,
-      /Locked Skills/
-    );
-
-    assert.match(
-      result.stdout,
-      /sqlite-debugging@0\.1\.0/
-    );
-
-    assert.match(
-      result.stdout,
-      /surgical-fix@0\.1\.0/
-    );
-
-    assert.match(
-      result.stdout,
-      /source: maykel-dev-skills/
-    );
-
-    assert.match(
-      result.stdout,
-      /Lockfile: skills-lock\.json/
+      result.stderr,
+      /skills-lock\.json was not found/
     );
   } finally {
     fs.rmSync(
@@ -116,22 +94,27 @@ test("lock command shows locked skills", () => {
   }
 });
 
-test("lock command handles a project without a lockfile", () => {
+test("update command rejects an unknown skill", () => {
   const temporaryDirectory =
     fs.mkdtempSync(
       path.join(
         os.tmpdir(),
-        "maykel-dev-lock-command-"
+        "maykel-dev-update-command-"
       )
     );
 
   try {
+    createLockfile(
+      temporaryDirectory
+    );
+
     const result =
       spawnSync(
         process.execPath,
         [
           cliPath,
-          "lock"
+          "update",
+          "does-not-exist"
         ],
         {
           cwd: temporaryDirectory,
@@ -139,15 +122,14 @@ test("lock command handles a project without a lockfile", () => {
         }
       );
 
-    assert.equal(
+    assert.notEqual(
       result.status,
-      0,
-      result.stderr
+      0
     );
 
     assert.match(
-      result.stdout,
-      /No skills are currently locked/
+      result.stderr,
+      /Skill "does-not-exist"/
     );
   } finally {
     fs.rmSync(
@@ -160,41 +142,30 @@ test("lock command handles a project without a lockfile", () => {
   }
 });
 
-test("lock --check passes when lockfile matches available skills", () => {
+test("update command can be invoked from the CLI", () => {
   const temporaryDirectory =
     fs.mkdtempSync(
       path.join(
         os.tmpdir(),
-        "maykel-dev-lock-check-"
+        "maykel-dev-update-command-"
       )
     );
 
   try {
-    fs.writeFileSync(
+    createLockfile(
+      temporaryDirectory
+    );
+
+    fs.mkdirSync(
       path.join(
         temporaryDirectory,
-        "skills-lock.json"
+        ".agents",
+        "skills",
+        "sqlite-debugging"
       ),
-      JSON.stringify(
-        {
-          schemaVersion: 1,
-          skills: {
-            "sqlite-debugging": {
-              version: "0.1.0",
-              source:
-                "maykel-dev-skills"
-            },
-            "surgical-fix": {
-              version: "0.1.0",
-              source:
-                "maykel-dev-skills"
-            }
-          }
-        },
-        null,
-        2
-      ),
-      "utf8"
+      {
+        recursive: true
+      }
     );
 
     const result =
@@ -202,8 +173,7 @@ test("lock --check passes when lockfile matches available skills", () => {
         process.execPath,
         [
           cliPath,
-          "lock",
-          "--check"
+          "update"
         ],
         {
           cwd: temporaryDirectory,
@@ -219,12 +189,7 @@ test("lock --check passes when lockfile matches available skills", () => {
 
     assert.match(
       result.stdout,
-      /Lockfile Check/
-    );
-
-    assert.match(
-      result.stdout,
-      /Lockfile is in sync with available skills/
+      /Updating skills/
     );
   } finally {
     fs.rmSync(
