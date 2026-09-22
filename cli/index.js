@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -127,6 +128,14 @@ Commands:
   help
       Show this help message.
 
+Options:
+
+  --version, -v
+      Show the current version.
+
+  --help, -h
+      Show this help message.
+
 Examples:
 
   npx maykel-dev-skills list
@@ -152,7 +161,9 @@ function listSkills() {
       continue;
     }
 
-    const relativePath = path.relative(root, file);
+    const relativePath = path
+      .relative(root, file)
+      .replaceAll("\\", "/");
 
     print(
       `  ${colors.cyan}${skill.name}${colors.reset} — ${skill.description}`
@@ -220,29 +231,64 @@ function searchSkills(query) {
     );
 
     print(
-      `    ${path.relative(root, file)}\n`
+      `    ${path.relative(root, file).replaceAll("\\", "/")}\n`
     );
   }
 }
 
 function runValidation() {
-  const { spawnSync } = awaitImportChildProcess();
+  print(`\n${colors.bold}Validating skills...${colors.reset}\n`);
+
+  const validatorPath = path.join(
+    root,
+    "scripts",
+    "validate-skills.js"
+  );
+
+  if (!fs.existsSync(validatorPath)) {
+    error("Validator script not found.");
+
+    process.exitCode = 1;
+    return;
+  }
 
   const result = spawnSync(
     process.execPath,
-    [path.join(root, "scripts", "validate-skills.js")],
+    [validatorPath],
     {
+      cwd: root,
       stdio: "inherit"
     }
   );
 
+  if (result.error) {
+    error(`Failed to run validator: ${result.error.message}`);
+
+    process.exitCode = 1;
+    return;
+  }
+
+  if (result.status === 0) {
+    success("All skills passed validation.");
+    return;
+  }
+
+  error("Skill validation failed.");
+
   process.exitCode = result.status ?? 1;
 }
 
-function awaitImportChildProcess() {
-  return {
-    spawnSync: null
-  };
+function showVersion() {
+  const packagePath = path.join(
+    root,
+    "package.json"
+  );
+
+  const packageJson = JSON.parse(
+    fs.readFileSync(packagePath, "utf8")
+  );
+
+  print(packageJson.version);
 }
 
 switch (command) {
@@ -255,8 +301,7 @@ switch (command) {
     break;
 
   case "validate":
-    print("Run validation with:");
-    print("  npm run validate");
+    runValidation();
     break;
 
   case "help":
@@ -266,17 +311,9 @@ switch (command) {
     break;
 
   case "--version":
-  case "-v": {
-    const packageJson = JSON.parse(
-      fs.readFileSync(
-        path.join(root, "package.json"),
-        "utf8"
-      )
-    );
-
-    print(packageJson.version);
+  case "-v":
+    showVersion();
     break;
-  }
 
   default:
     error(`Unknown command: ${command}`);
