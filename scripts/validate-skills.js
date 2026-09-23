@@ -307,6 +307,72 @@ function validateSkill(
   }
 
   if (
+    skill.dependencies !== undefined
+  ) {
+    if (
+      !Array.isArray(
+        skill.dependencies
+      )
+    ) {
+      errors.push(
+        `${relativePath}: dependencies must be an array.`
+      );
+    } else {
+      const seenDependencies =
+        new Set();
+
+      for (
+        const dependency of skill.dependencies
+      ) {
+        if (
+          typeof dependency !== "string" ||
+          dependency.trim() === ""
+        ) {
+          errors.push(
+            `${relativePath}: every dependency must be a non-empty string.`
+          );
+          continue;
+        }
+
+        if (
+          !NAME_PATTERN.test(
+            dependency
+          )
+        ) {
+          errors.push(
+            `${relativePath}: invalid dependency "${dependency}".`
+          );
+        }
+
+        if (
+          dependency === skill.name
+        ) {
+          errors.push(
+            `${relativePath}: skill cannot depend on itself.`
+          );
+        }
+
+        const normalized =
+          dependency.toLowerCase();
+
+        if (
+          seenDependencies.has(
+            normalized
+          )
+        ) {
+          errors.push(
+            `${relativePath}: duplicate dependency "${dependency}".`
+          );
+        }
+
+        seenDependencies.add(
+          normalized
+        );
+      }
+    }
+  }
+
+  if (
     skill.tags !== undefined
   ) {
     if (

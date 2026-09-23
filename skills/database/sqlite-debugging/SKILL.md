@@ -9,6 +9,8 @@ tags:
   - database
   - debugging
   - transactions
+dependencies:
+  - surgical-fix
 ---
 
 # SQLite Debugging
