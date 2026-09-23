@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   installSkill,
+  removeSkill,
   findSkill,
   updateInstalledSkills
 } from "./installer.js";
@@ -300,6 +301,10 @@ Commands:
 
   install <skill>
       Install a skill.
+
+
+  remove <skill>
+      Remove an installed skill.
 
   update
       Update installed skills using skills-lock.json.
@@ -1620,6 +1625,103 @@ function createCommand(
   }
 }
 
+function removeCommand(
+  commandArgs
+) {
+  const skillName =
+    commandArgs.find(
+      (argument) =>
+        !argument.startsWith(
+          "--"
+        )
+    );
+
+  if (!skillName) {
+    error(
+      "Please provide a skill name."
+    );
+
+    print(
+      "\nExample:\n  npx maykel-dev-skills remove sqlite-debugging\n"
+    );
+
+    process.exitCode =
+      1;
+
+    return;
+  }
+
+  let targetDirectory =
+    ".agents/skills";
+
+  for (
+    let index = 0;
+    index < commandArgs.length;
+    index += 1
+  ) {
+    const argument =
+      commandArgs[index];
+
+    if (
+      argument === "--target"
+    ) {
+      const nextArgument =
+        commandArgs[
+          index + 1
+        ];
+
+      if (!nextArgument) {
+        error(
+          "--target requires a directory."
+        );
+
+        process.exitCode =
+          1;
+
+        return;
+      }
+
+      targetDirectory =
+        nextArgument;
+
+      index += 1;
+    }
+  }
+
+  try {
+    const result =
+      removeSkill(
+        skillName,
+        targetDirectory
+      );
+
+    print(
+      `\n${colors.bold}Removing skill${colors.reset}\n`
+    );
+
+    success(
+      `${result.name} removed.`
+    );
+
+    print(
+      `  destination: ${result.destination}`
+    );
+
+    print(
+      `  lockfile: ${result.lockfile ? "updated" : "not found"}\n`
+    );
+  } catch (
+    removalError
+  ) {
+    error(
+      removalError.message
+    );
+
+    process.exitCode =
+      1;
+  }
+}
+
 function installCommand(
   commandArgs
 ) {
@@ -1927,6 +2029,12 @@ switch (command) {
 
   case "install":
     installCommand(
+      args.slice(1)
+    );
+    break;
+
+  case "remove":
+    removeCommand(
       args.slice(1)
     );
     break;

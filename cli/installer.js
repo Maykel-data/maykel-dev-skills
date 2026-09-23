@@ -4,7 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import {
   addSkillToLockfile,
-  readLockfile
+  readLockfile,
+  removeSkillFromLockfile
 } from "./lockfile.js";
 
 const __filename =
@@ -21,6 +22,9 @@ const root =
 
 const defaultTarget =
   ".agents/skills";
+
+const NAME_PATTERN =
+  /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 function getSkillDirectories() {
   const skillsDir =
@@ -417,6 +421,116 @@ function installSkill(
   };
 }
 
+function removeSkill(
+  skillName,
+  targetDirectory = defaultTarget
+) {
+  if (
+    !skillName
+  ) {
+    throw new Error(
+      "Please provide a skill name."
+    );
+  }
+
+  if (
+    !NAME_PATTERN.test(
+      skillName
+    )
+  ) {
+    throw new Error(
+      `Invalid skill name "${skillName}".`
+    );
+  }
+
+  const targetRoot =
+    path.resolve(
+      process.cwd(),
+      targetDirectory
+    );
+
+  const skillDirectory =
+    path.join(
+      targetRoot,
+      skillName
+    );
+
+  if (
+    !fs.existsSync(
+      skillDirectory
+    )
+  ) {
+    throw new Error(
+      `Installed skill "${skillName}" was not found at ${skillDirectory}.`
+    );
+  }
+
+  if (
+    !fs.statSync(
+      skillDirectory
+    ).isDirectory()
+  ) {
+    throw new Error(
+      `Installed skill path is not a directory: ${skillDirectory}.`
+    );
+  }
+
+  const lockfilePath =
+    path.join(
+      targetRoot,
+      "skills-lock.json"
+    );
+
+  let lockfile = null;
+
+  if (
+    fs.existsSync(
+      lockfilePath
+    )
+  ) {
+    lockfile =
+      readLockfile(
+        targetRoot
+      );
+  }
+
+  fs.rmSync(
+    skillDirectory,
+    {
+      recursive: true,
+      force: true
+    }
+  );
+
+  if (
+    lockfile
+  ) {
+    lockfile =
+      removeSkillFromLockfile(
+        targetRoot,
+        skillName
+      );
+  }
+
+  return {
+    name:
+      skillName,
+
+    destination:
+      path
+        .relative(
+          process.cwd(),
+          skillDirectory
+        )
+        .replaceAll(
+          "\\",
+          "/"
+        ),
+
+    lockfile
+  };
+}
+
 function updateInstalledSkills(
   targetDirectory = defaultTarget,
   skillName = null
@@ -572,6 +686,7 @@ function updateInstalledSkills(
 
 export {
   installSkill,
+  removeSkill,
   findSkill,
   updateInstalledSkills
 };
