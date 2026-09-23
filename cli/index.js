@@ -127,13 +127,7 @@ function getSkillFiles() {
   return files.sort();
 }
 
-function parseSkill(filePath) {
-  const content =
-    fs.readFileSync(
-      filePath,
-      "utf8"
-    );
-
+function parseFrontmatter(content) {
   if (
     !content.startsWith("---")
   ) {
@@ -146,11 +140,13 @@ function parseSkill(filePath) {
       3
     );
 
-  if (end === -1) {
+  if (
+    end === -1
+  ) {
     return null;
   }
 
-  const frontmatter =
+  const raw =
     content
       .slice(
         3,
@@ -160,11 +156,54 @@ function parseSkill(filePath) {
 
   const data = {};
 
-  for (
-    const line of frontmatter.split(
+  const lines =
+    raw.split(
       /\r?\n/
-    )
+    );
+
+  let currentArrayKey =
+    null;
+
+  for (
+    const line of lines
   ) {
+    const trimmed =
+      line.trim();
+
+    if (
+      trimmed === ""
+    ) {
+      continue;
+    }
+
+    if (
+      currentArrayKey &&
+      trimmed.startsWith(
+        "- "
+      )
+    ) {
+      if (
+        !Array.isArray(
+          data[currentArrayKey]
+        )
+      ) {
+        data[currentArrayKey] = [];
+      }
+
+      data[
+        currentArrayKey
+      ].push(
+        trimmed
+          .slice(2)
+          .trim()
+      );
+
+      continue;
+    }
+
+    currentArrayKey =
+      null;
+
     const separator =
       line.indexOf(":");
 
@@ -189,11 +228,42 @@ function parseSkill(filePath) {
         )
         .trim();
 
+    if (
+      value === ""
+    ) {
+      data[key] = [];
+
+      currentArrayKey =
+        key;
+
+      continue;
+    }
+
     data[key] =
       value;
   }
 
   return data;
+}
+
+function getSkills() {
+  return getSkillFiles()
+    .map(
+      (file) => ({
+        file,
+        skill:
+          parseFrontmatter(
+            fs.readFileSync(
+              file,
+              "utf8"
+            )
+          )
+      })
+    )
+    .filter(
+      ({ skill }) =>
+        skill !== null
+    );
 }
 
 function commandHelp() {
@@ -209,7 +279,13 @@ Commands:
       List available skills.
 
   search <query>
-      Search skills by name, description, or category.
+      Search skills by name, description, category, or tags.
+
+  search --category <category>
+      Search skills by category.
+
+  search --tag <tag>
+      Search skills by tag.
 
   info <skill>
       Show information about a skill.
@@ -249,6 +325,12 @@ Commands:
 
 Options:
 
+  --category <category>
+      Filter search results by category.
+
+  --tag <tag>
+      Filter search results by tag.
+
   --target <directory>
       Choose where the skill will be installed.
 
@@ -266,6 +348,12 @@ Examples:
   npx maykel-dev-skills list
 
   npx maykel-dev-skills search sqlite
+
+  npx maykel-dev-skills search --category database
+
+  npx maykel-dev-skills search --tag debugging
+
+  npx maykel-dev-skills search sqlite --tag database
 
   npx maykel-dev-skills info sqlite-debugging
 
@@ -292,11 +380,11 @@ Examples:
 }
 
 function listSkills() {
-  const files =
-    getSkillFiles();
+  const skills =
+    getSkills();
 
   if (
-    files.length === 0
+    skills.length === 0
   ) {
     print(
       "No skills found."
@@ -310,15 +398,11 @@ function listSkills() {
   );
 
   for (
-    const file of files
+    const {
+      file,
+      skill
+    } of skills
   ) {
-    const skill =
-      parseSkill(file);
-
-    if (!skill) {
-      continue;
-    }
-
     const relativePath =
       path
         .relative(
@@ -330,6 +414,15 @@ function listSkills() {
           "/"
         );
 
+    const tags =
+      Array.isArray(
+        skill.tags
+      )
+        ? skill.tags.join(
+            ", "
+          )
+        : "none";
+
     print(
       `  ${colors.cyan}${skill.name}${colors.reset} — ${skill.description}`
     );
@@ -339,19 +432,161 @@ function listSkills() {
     );
 
     print(
+      `    tags: ${tags}`
+    );
+
+    print(
       `    ${relativePath}\n`
     );
   }
 }
 
-function searchSkills(query) {
-  if (!query) {
-    error(
-      "Please provide a search query."
-    );
+function parseSearchArguments(
+  searchArgs
+) {
+  const filters = {
+    query: [],
+    category: null,
+    tag: null
+  };
 
-    print(
-      "\nExample:\n  npx maykel-dev-skills search sqlite\n"
+  for (
+    let index = 0;
+    index < searchArgs.length;
+    index += 1
+  ) {
+    const argument =
+      searchArgs[index];
+
+    if (
+      argument === "--category"
+    ) {
+      const value =
+        searchArgs[
+          index + 1
+        ];
+
+      if (!value) {
+        throw new Error(
+          "--category requires a category."
+        );
+      }
+
+      filters.category =
+        value
+          .trim()
+          .toLowerCase();
+
+      index += 1;
+
+      continue;
+    }
+
+    if (
+      argument.startsWith(
+        "--category="
+      )
+    ) {
+      filters.category =
+        argument
+          .slice(
+            "--category=".length
+          )
+          .trim()
+          .toLowerCase();
+
+      if (
+        !filters.category
+      ) {
+        throw new Error(
+          "--category requires a category."
+        );
+      }
+
+      continue;
+    }
+
+    if (
+      argument === "--tag"
+    ) {
+      const value =
+        searchArgs[
+          index + 1
+        ];
+
+      if (!value) {
+        throw new Error(
+          "--tag requires a tag."
+        );
+      }
+
+      filters.tag =
+        value
+          .trim()
+          .toLowerCase();
+
+      index += 1;
+
+      continue;
+    }
+
+    if (
+      argument.startsWith(
+        "--tag="
+      )
+    ) {
+      filters.tag =
+        argument
+          .slice(
+            "--tag=".length
+          )
+          .trim()
+          .toLowerCase();
+
+      if (
+        !filters.tag
+      ) {
+        throw new Error(
+          "--tag requires a tag."
+        );
+      }
+
+      continue;
+    }
+
+    if (
+      argument.startsWith(
+        "--"
+      )
+    ) {
+      throw new Error(
+        `Unknown search option "${argument}".`
+      );
+    }
+
+    filters.query.push(
+      argument
+    );
+  }
+
+  return filters;
+}
+
+function searchSkills(
+  searchArgs
+) {
+  let filters;
+
+  try {
+    filters =
+      parseSearchArguments(
+        searchArgs
+      );
+  } catch (
+    searchError
+  ) {
+    error(
+      searchError.message
     );
 
     process.exitCode =
@@ -360,40 +595,114 @@ function searchSkills(query) {
     return;
   }
 
-  const normalizedQuery =
-    query.toLowerCase();
+  const query =
+    filters.query
+      .join(" ")
+      .trim()
+      .toLowerCase();
+
+  if (
+    !query &&
+    !filters.category &&
+    !filters.tag
+  ) {
+    error(
+      "Please provide a search query, category, or tag."
+    );
+
+    print(
+      "\nExamples:\n" +
+      "  npx maykel-dev-skills search sqlite\n" +
+      "  npx maykel-dev-skills search --category database\n" +
+      "  npx maykel-dev-skills search --tag debugging\n"
+    );
+
+    process.exitCode =
+      1;
+
+    return;
+  }
 
   const matches =
-    getSkillFiles()
-      .map(
-        (file) => ({
-          file,
-          skill:
-            parseSkill(file)
-        })
-      )
+    getSkills()
       .filter(
         ({ skill }) => {
-          if (!skill) {
-            return false;
-          }
+          const tags =
+            Array.isArray(
+              skill.tags
+            )
+              ? skill.tags.map(
+                  (tag) =>
+                    String(tag)
+                      .trim()
+                      .toLowerCase()
+                )
+              : [];
 
           const searchableText = [
             skill.name,
             skill.description,
-            skill.category
+            skill.category,
+            ...tags
           ]
             .join(" ")
             .toLowerCase();
 
-          return searchableText.includes(
-            normalizedQuery
+          const queryMatches =
+            !query ||
+            searchableText.includes(
+              query
+            );
+
+          const categoryMatches =
+            !filters.category ||
+            String(
+              skill.category
+            )
+              .trim()
+              .toLowerCase() ===
+              filters.category;
+
+          const tagMatches =
+            !filters.tag ||
+            tags.includes(
+              filters.tag
+            );
+
+          return (
+            queryMatches &&
+            categoryMatches &&
+            tagMatches
           );
         }
       );
 
+  const filterDescription = [];
+
+  if (query) {
+    filterDescription.push(
+      `query="${query}"`
+    );
+  }
+
+  if (
+    filters.category
+  ) {
+    filterDescription.push(
+      `category="${filters.category}"`
+    );
+  }
+
+  if (
+    filters.tag
+  ) {
+    filterDescription.push(
+      `tag="${filters.tag}"`
+    );
+  }
+
   print(
-    `\n${colors.bold}Search results for "${query}"${colors.reset}\n`
+    `\n${colors.bold}Search results${colors.reset} (${filterDescription.join(", ")})\n`
   );
 
   if (
@@ -412,12 +721,25 @@ function searchSkills(query) {
       skill
     } of matches
   ) {
+    const tags =
+      Array.isArray(
+        skill.tags
+      )
+        ? skill.tags.join(
+            ", "
+          )
+        : "none";
+
     print(
       `  ${colors.green}${skill.name}${colors.reset} — ${skill.description}`
     );
 
     print(
       `    category: ${skill.category} | version: ${skill.version}`
+    );
+
+    print(
+      `    tags: ${tags}`
     );
 
     print(
@@ -434,7 +756,9 @@ function searchSkills(query) {
   }
 }
 
-function showSkillInfo(skillName) {
+function showSkillInfo(
+  skillName
+) {
   if (!skillName) {
     error(
       "Please provide a skill name."
@@ -483,6 +807,15 @@ function showSkillInfo(skillName) {
         "/"
       );
 
+  const tags =
+    Array.isArray(
+      result.skill.tags
+    )
+      ? result.skill.tags.join(
+          ", "
+        )
+      : "none";
+
   print(
     `\n${colors.bold}${result.skill.name}${colors.reset}\n`
   );
@@ -497,6 +830,10 @@ function showSkillInfo(skillName) {
 
   print(
     `  Category:    ${result.skill.category}`
+  );
+
+  print(
+    `  Tags:        ${tags}`
   );
 
   print(
@@ -689,12 +1026,11 @@ function showLockfile() {
 }
 
 function getAvailableSkills() {
-  return getSkillFiles()
+  return getSkills()
     .map(
-      (file) =>
-        parseSkill(file)
-    )
-    .filter(Boolean);
+      ({ skill }) =>
+        skill
+    );
 }
 
 function showLockfileCheck() {
@@ -1223,7 +1559,9 @@ function updateCommand(
   const skillName =
     commandArgs.find(
       (argument) =>
-        !argument.startsWith("--")
+        !argument.startsWith(
+          "--"
+        )
     );
 
   let targetDirectory =
@@ -1241,14 +1579,17 @@ function updateCommand(
       argument === "--target"
     ) {
       const nextArgument =
-        commandArgs[index + 1];
+        commandArgs[
+          index + 1
+        ];
 
       if (!nextArgument) {
         error(
           "--target requires a directory."
         );
 
-        process.exitCode = 1;
+        process.exitCode =
+          1;
 
         return;
       }
@@ -1265,13 +1606,6 @@ function updateCommand(
       `\n${colors.bold}Updating skills${colors.reset}\n`
     );
 
-    /*
-     * The update command must operate on the
-     * lockfile belonging to the current project.
-     *
-     * Do this check explicitly before calling
-     * updateInstalledSkills().
-     */
     const lockfilePath =
       getLockfilePath(
         process.cwd()
@@ -1361,9 +1695,31 @@ function updateCommand(
       updateError.message
     );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
   }
 }
+
+function showVersion() {
+  const packagePath =
+    path.join(
+      root,
+      "package.json"
+    );
+
+  const packageJson =
+    JSON.parse(
+      fs.readFileSync(
+        packagePath,
+        "utf8"
+      )
+    );
+
+  print(
+    packageJson.version
+  );
+}
+
 switch (command) {
   case "list":
     listSkills();
@@ -1371,9 +1727,7 @@ switch (command) {
 
   case "search":
     searchSkills(
-      args
-        .slice(1)
-        .join(" ")
+      args.slice(1)
     );
     break;
 

@@ -14,35 +14,49 @@ const __dirname =
   path.dirname(__filename);
 
 const root =
-  path.resolve(__dirname, "..");
+  path.resolve(
+    __dirname,
+    ".."
+  );
 
 const defaultTarget =
   ".agents/skills";
 
 function getSkillDirectories() {
   const skillsDir =
-    path.join(root, "skills");
+    path.join(
+      root,
+      "skills"
+    );
 
   const results = [];
 
-  if (!fs.existsSync(skillsDir)) {
+  if (
+    !fs.existsSync(
+      skillsDir
+    )
+  ) {
     return results;
   }
 
   function walk(directory) {
-    for (const entry of fs.readdirSync(
-      directory,
-      {
-        withFileTypes: true
-      }
-    )) {
+    for (
+      const entry of fs.readdirSync(
+        directory,
+        {
+          withFileTypes: true
+        }
+      )
+    ) {
       const fullPath =
         path.join(
           directory,
           entry.name
         );
 
-      if (entry.isDirectory()) {
+      if (
+        entry.isDirectory()
+      ) {
         const skillFile =
           path.join(
             fullPath,
@@ -50,9 +64,14 @@ function getSkillDirectories() {
           );
 
         if (
-          fs.existsSync(skillFile)
+          fs.existsSync(
+            skillFile
+          )
         ) {
-          results.push(fullPath);
+          results.push(
+            fullPath
+          );
+
           continue;
         }
 
@@ -73,7 +92,11 @@ function parseSkill(filePath) {
       "utf8"
     );
 
-  if (!content.startsWith("---")) {
+  if (
+    !content.startsWith(
+      "---"
+    )
+  ) {
     return null;
   }
 
@@ -83,38 +106,96 @@ function parseSkill(filePath) {
       3
     );
 
-  if (end === -1) {
+  if (
+    end === -1
+  ) {
     return null;
   }
 
   const frontmatter =
     content
-      .slice(3, end)
+      .slice(
+        3,
+        end
+      )
       .trim();
 
   const data = {};
 
-  for (const line of frontmatter.split(
-    /\r?\n/
-  )) {
+  let currentArray =
+    null;
+
+  for (
+    const line of frontmatter.split(
+      /\r?\n/
+    )
+  ) {
+    const trimmed =
+      line.trim();
+
+    if (
+      trimmed === ""
+    ) {
+      continue;
+    }
+
+    if (
+      currentArray &&
+      trimmed.startsWith(
+        "- "
+      )
+    ) {
+      data[
+        currentArray
+      ].push(
+        trimmed
+          .slice(2)
+          .trim()
+      );
+
+      continue;
+    }
+
+    currentArray =
+      null;
+
     const separator =
       line.indexOf(":");
 
-    if (separator === -1) {
+    if (
+      separator === -1
+    ) {
       continue;
     }
 
     const key =
       line
-        .slice(0, separator)
+        .slice(
+          0,
+          separator
+        )
         .trim();
 
     const value =
       line
-        .slice(separator + 1)
+        .slice(
+          separator + 1
+        )
         .trim();
 
-    data[key] = value;
+    if (
+      value === ""
+    ) {
+      data[key] = [];
+
+      currentArray =
+        key;
+
+      continue;
+    }
+
+    data[key] =
+      value;
   }
 
   return data;
@@ -124,7 +205,9 @@ function findSkill(skillName) {
   const directories =
     getSkillDirectories();
 
-  for (const directory of directories) {
+  for (
+    const directory of directories
+  ) {
     const skillFile =
       path.join(
         directory,
@@ -132,10 +215,13 @@ function findSkill(skillName) {
       );
 
     const skill =
-      parseSkill(skillFile);
+      parseSkill(
+        skillFile
+      );
 
     if (
-      skill?.name === skillName
+      skill?.name ===
+      skillName
     ) {
       return {
         directory,
@@ -158,12 +244,14 @@ function copyDirectory(
     }
   );
 
-  for (const entry of fs.readdirSync(
-    sourceDirectory,
-    {
-      withFileTypes: true
-    }
-  )) {
+  for (
+    const entry of fs.readdirSync(
+      sourceDirectory,
+      {
+        withFileTypes: true
+      }
+    )
+  ) {
     const sourcePath =
       path.join(
         sourceDirectory,
@@ -176,7 +264,9 @@ function copyDirectory(
         entry.name
       );
 
-    if (entry.isDirectory()) {
+    if (
+      entry.isDirectory()
+    ) {
       copyDirectory(
         sourcePath,
         destinationPath
@@ -197,16 +287,22 @@ function installSkill(
   targetDirectory = defaultTarget,
   options = {}
 ) {
-  if (!skillName) {
+  if (
+    !skillName
+  ) {
     throw new Error(
       "Please provide a skill name."
     );
   }
 
   const result =
-    findSkill(skillName);
+    findSkill(
+      skillName
+    );
 
-  if (!result) {
+  if (
+    !result
+  ) {
     throw new Error(
       `Skill "${skillName}" was not found.`
     );
@@ -255,31 +351,68 @@ function installSkill(
     skillDestination
   );
 
+  /*
+   * The lockfile belongs to the installation target.
+   *
+   * This is important for:
+   * - normal project installs
+   * - isolated test installations
+   * - custom target directories
+   *
+   * Do not use process.cwd() here because
+   * targetDirectory may point somewhere else.
+   */
   const lockfile =
     addSkillToLockfile(
-      process.cwd(),
+      targetRoot,
       {
-        name: result.skill.name,
-        version: result.skill.version
+        name:
+          result.skill.name,
+
+        version:
+          result.skill.version
       }
     );
 
   return {
-    name: result.skill.name,
-    version: result.skill.version,
-    category: result.skill.category,
-    source: path
-      .relative(
-        root,
-        result.directory
+    name:
+      result.skill.name,
+
+    version:
+      result.skill.version,
+
+    category:
+      result.skill.category,
+
+    tags:
+      Array.isArray(
+        result.skill.tags
       )
-      .replaceAll("\\", "/"),
-    destination: path
-      .relative(
-        process.cwd(),
-        skillDestination
-      )
-      .replaceAll("\\", "/"),
+        ? result.skill.tags
+        : [],
+
+    source:
+      path
+        .relative(
+          root,
+          result.directory
+        )
+        .replaceAll(
+          "\\",
+          "/"
+        ),
+
+    destination:
+      path
+        .relative(
+          process.cwd(),
+          skillDestination
+        )
+        .replaceAll(
+          "\\",
+          "/"
+        ),
+
     lockfile
   };
 }
@@ -288,6 +421,22 @@ function updateInstalledSkills(
   targetDirectory = defaultTarget,
   skillName = null
 ) {
+  const lockfilePath =
+    path.join(
+      process.cwd(),
+      "skills-lock.json"
+    );
+
+  if (
+    !fs.existsSync(
+      lockfilePath
+    )
+  ) {
+    throw new Error(
+      "Cannot update skills: skills-lock.json was not found."
+    );
+  }
+
   const lockfile =
     readLockfile(
       process.cwd()
@@ -328,7 +477,8 @@ function updateInstalledSkills(
   ) {
     if (
       skillName &&
-      lockedName !== skillName
+      lockedName !==
+        skillName
     ) {
       continue;
     }
@@ -356,9 +506,13 @@ function updateInstalledSkills(
         lockedName
       );
 
-    if (!currentSkill) {
+    if (
+      !currentSkill
+    ) {
       skipped.push({
-        name: lockedName,
+        name:
+          lockedName,
+
         reason:
           "skill is no longer available in the repository"
       });
@@ -374,7 +528,9 @@ function updateInstalledSkills(
       lockedSkill.version
     ) {
       current.push({
-        name: lockedName,
+        name:
+          lockedName,
+
         version:
           currentVersion
       });
@@ -392,11 +548,15 @@ function updateInstalledSkills(
       );
 
     updated.push({
-      name: result.name,
+      name:
+        result.name,
+
       from:
         lockedSkill.version,
+
       to:
         result.version,
+
       destination:
         result.destination
     });
