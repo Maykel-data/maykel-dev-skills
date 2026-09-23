@@ -18,6 +18,9 @@
         "database",
         "debugging",
         "transactions"
+      ],
+      "dependencies": [
+        "surgical-fix"
       ]
     },
     {

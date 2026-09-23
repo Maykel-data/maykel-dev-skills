@@ -95,6 +95,32 @@ test(
 );
 
 test(
+  "registry builder preserves skill dependencies",
+  () => {
+    buildRegistry();
+
+    const registry =
+      readRegistry();
+
+    const skill =
+      registry.skills.find(
+        (entry) =>
+          entry.name ===
+          "sqlite-debugging"
+      );
+
+    assert.ok(skill);
+
+    assert.deepEqual(
+      skill.dependencies,
+      [
+        "surgical-fix"
+      ]
+    );
+  }
+);
+
+test(
   "registry builder omits tags when a skill has no tags",
   () => {
     buildRegistry();

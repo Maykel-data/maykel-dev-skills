@@ -81,35 +81,38 @@ function parseFrontmatter(content) {
       .trim();
 
     if (
-      key === "tags" &&
+      (
+        key === "tags" ||
+        key === "dependencies"
+      ) &&
       value === ""
     ) {
-      const tags = [];
+      const values = [];
 
       for (
-        let tagIndex = index + 1;
-        tagIndex < lines.length;
-        tagIndex += 1
+        let valueIndex = index + 1;
+        valueIndex < lines.length;
+        valueIndex += 1
       ) {
-        const tagLine =
-          lines[tagIndex].trim();
+        const valueLine =
+          lines[valueIndex].trim();
 
         if (
-          !tagLine.startsWith("- ")
+          !valueLine.startsWith("- ")
         ) {
           break;
         }
 
-        tags.push(
-          tagLine
+        values.push(
+          valueLine
             .slice(2)
             .trim()
         );
 
-        index = tagIndex;
+        index = valueIndex;
       }
 
-      data.tags = tags;
+      data[key] = values;
       continue;
     }
 
@@ -155,6 +158,16 @@ function loadSkills() {
     ) {
       skill.tags = [
         ...frontmatter.tags
+      ];
+    }
+
+    if (
+      Array.isArray(
+        frontmatter.dependencies
+      )
+    ) {
+      skill.dependencies = [
+        ...frontmatter.dependencies
       ];
     }
 
