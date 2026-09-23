@@ -25,6 +25,11 @@ test("finds the current repository version of an installed skill", () => {
 
   try {
     installSkill(
+      "surgical-fix",
+      temporaryDirectory
+    );
+
+    installSkill(
       "sqlite-debugging",
       temporaryDirectory
     );
@@ -196,11 +201,6 @@ test("updating one installed skill does not remove another installed skill", () 
   try {
     installSkill(
       "sqlite-debugging",
-      temporaryDirectory
-    );
-
-    installSkill(
-      "surgical-fix",
       temporaryDirectory
     );
 

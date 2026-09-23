@@ -286,6 +286,93 @@ function copyDirectory(
   }
 }
 
+function installDependencies(
+  skill,
+  targetDirectory,
+  options,
+  installing = new Set()
+) {
+  if (
+    installing.has(
+      skill.name
+    )
+  ) {
+    throw new Error(
+      `Circular skill dependency detected: ${skill.name}.`
+    );
+  }
+
+  installing.add(
+    skill.name
+  );
+
+  const dependencies =
+    Array.isArray(
+      skill.dependencies
+    )
+      ? skill.dependencies
+      : [];
+
+  for (
+    const dependencyName of dependencies
+  ) {
+    const dependency =
+      findSkill(
+        dependencyName
+      );
+
+    if (!dependency) {
+      throw new Error(
+        `Skill dependency "${dependencyName}" required by "${skill.name}" was not found.`
+      );
+    }
+
+    const targetRoot =
+      path.resolve(
+        process.cwd(),
+        targetDirectory
+      );
+
+    const dependencyDestination =
+      path.join(
+        targetRoot,
+        dependencyName
+      );
+
+    if (
+      !fs.existsSync(
+        dependencyDestination
+      )
+    ) {
+      installDependencies(
+        dependency.skill,
+        targetDirectory,
+        options,
+        installing
+      );
+
+      copyDirectory(
+        dependency.directory,
+        dependencyDestination
+      );
+
+      addSkillToLockfile(
+        targetRoot,
+        {
+          name:
+            dependency.skill.name,
+          version:
+            dependency.skill.version
+        }
+      );
+    }
+  }
+
+  installing.delete(
+    skill.name
+  );
+}
+
 function installSkill(
   skillName,
   targetDirectory = defaultTarget,
@@ -349,6 +436,12 @@ function installSkill(
       }
     );
   }
+
+  installDependencies(
+    result.skill,
+    targetDirectory,
+    options
+  );
 
   copyDirectory(
     result.directory,
