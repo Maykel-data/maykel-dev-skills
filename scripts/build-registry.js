@@ -62,8 +62,10 @@ function parseFrontmatter(content) {
     .trim();
 
   const data = {};
+  const lines = raw.split(/\r?\n/);
 
-  for (const line of raw.split(/\r?\n/)) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
     const separator = line.indexOf(":");
 
     if (separator === -1) {
@@ -77,6 +79,39 @@ function parseFrontmatter(content) {
     const value = line
       .slice(separator + 1)
       .trim();
+
+    if (
+      key === "tags" &&
+      value === ""
+    ) {
+      const tags = [];
+
+      for (
+        let tagIndex = index + 1;
+        tagIndex < lines.length;
+        tagIndex += 1
+      ) {
+        const tagLine =
+          lines[tagIndex].trim();
+
+        if (
+          !tagLine.startsWith("- ")
+        ) {
+          break;
+        }
+
+        tags.push(
+          tagLine
+            .slice(2)
+            .trim()
+        );
+
+        index = tagIndex;
+      }
+
+      data.tags = tags;
+      continue;
+    }
 
     data[key] = value;
   }
@@ -105,13 +140,25 @@ function loadSkills() {
       .relative(root, file)
       .replaceAll("\\", "/");
 
-    skills.push({
+    const skill = {
       name: frontmatter.name,
       description: frontmatter.description,
       version: frontmatter.version,
       category: frontmatter.category,
       path: relativePath
-    });
+    };
+
+    if (
+      Array.isArray(
+        frontmatter.tags
+      )
+    ) {
+      skill.tags = [
+        ...frontmatter.tags
+      ];
+    }
+
+    skills.push(skill);
   }
 
   skills.sort((a, b) =>

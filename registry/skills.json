@@ -11,7 +11,14 @@
       "description": "Diagnose SQLite database problems using evidence from schema, queries, transactions, constraints, and runtime behavior.",
       "version": "0.1.0",
       "category": "database",
-      "path": "skills/database/sqlite-debugging/SKILL.md"
+      "path": "skills/database/sqlite-debugging/SKILL.md",
+      "tags": [
+        "sqlite",
+        "sql",
+        "database",
+        "debugging",
+        "transactions"
+      ]
     },
     {
       "name": "surgical-fix",
