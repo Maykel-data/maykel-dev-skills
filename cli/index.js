@@ -23,6 +23,10 @@ import {
 } from "./doctor.js";
 
 import {
+  createSkill
+} from "./creator.js";
+
+import {
   readLockfile,
   getLockfilePath,
   checkLockfile
@@ -274,6 +278,10 @@ Usage:
   npx maykel-dev-skills <command>
 
 Commands:
+
+  create <skill>
+      Create a new skill from the standard template.
+
 
   list
       List available skills.
@@ -1439,6 +1447,179 @@ function runDoctor() {
     1;
 }
 
+function createCommand(
+  commandArgs
+) {
+  const name =
+    commandArgs.find(
+      (argument) =>
+        !argument.startsWith("--")
+    );
+
+  if (!name) {
+    error(
+      "Please provide a skill name."
+    );
+
+    print(
+      "\nExample:\n  npx maykel-dev-skills create my-new-skill\n"
+    );
+
+    process.exitCode =
+      1;
+
+    return;
+  }
+
+  let category =
+    "engineering";
+
+  let version =
+    "0.1.0";
+
+  let tags = [];
+
+  let force =
+    false;
+
+  for (
+    let index = 0;
+    index < commandArgs.length;
+    index += 1
+  ) {
+    const argument =
+      commandArgs[index];
+
+    if (
+      argument === "--category"
+    ) {
+      const nextArgument =
+        commandArgs[index + 1];
+
+      if (!nextArgument) {
+        error(
+          "--category requires a category."
+        );
+
+        process.exitCode =
+          1;
+
+        return;
+      }
+
+      category =
+        nextArgument;
+
+      index += 1;
+
+      continue;
+    }
+
+    if (
+      argument === "--version"
+    ) {
+      const nextArgument =
+        commandArgs[index + 1];
+
+      if (!nextArgument) {
+        error(
+          "--version requires a version."
+        );
+
+        process.exitCode =
+          1;
+
+        return;
+      }
+
+      version =
+        nextArgument;
+
+      index += 1;
+
+      continue;
+    }
+
+    if (
+      argument === "--tags"
+    ) {
+      const nextArgument =
+        commandArgs[index + 1];
+
+      if (!nextArgument) {
+        error(
+          "--tags requires a comma-separated list."
+        );
+
+        process.exitCode =
+          1;
+
+        return;
+      }
+
+      tags =
+        nextArgument
+          .split(",")
+          .map(
+            (tag) =>
+              tag.trim()
+          )
+          .filter(Boolean);
+
+      index += 1;
+
+      continue;
+    }
+
+    if (
+      argument === "--force"
+    ) {
+      force = true;
+    }
+  }
+
+  try {
+    const result =
+      createSkill({
+        root,
+        name,
+        category,
+        version,
+        tags,
+        force
+      });
+
+    print(
+      `\n${colors.bold}Created skill${colors.reset}\n`
+    );
+
+    success(
+      `${result.name}@${result.version} created.`
+    );
+
+    print(
+      `  category: ${result.category}`
+    );
+
+    print(
+      `  tags: ${result.tags.length > 0 ? result.tags.join(", ") : "none"}`
+    );
+
+    print(
+      `  path: ${result.path}\n`
+    );
+  } catch (
+    creationError
+  ) {
+    error(
+      creationError.message
+    );
+
+    process.exitCode =
+      1;
+  }
+}
+
 function installCommand(
   commandArgs
 ) {
@@ -1721,6 +1902,13 @@ function showVersion() {
 }
 
 switch (command) {
+  case "create":
+    createCommand(
+      args.slice(1)
+    );
+    break;
+
+
   case "list":
     listSkills();
     break;
