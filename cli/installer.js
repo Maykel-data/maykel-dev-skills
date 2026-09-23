@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import {
   addSkillToLockfile,
   readLockfile,
-  removeSkillFromLockfile
+  removeSkillFromLockfile,
+  writeLockfile
 } from "./lockfile.js";
 
 const __filename =
@@ -708,6 +709,111 @@ function removeSkill(
   };
 }
 
+function updateSkillDependencies(
+  skill,
+  targetDirectory,
+  lockfile,
+  visited = new Set()
+) {
+  if (
+    visited.has(
+      skill.name
+    )
+  ) {
+    return;
+  }
+
+  visited.add(
+    skill.name
+  );
+
+  const dependencies =
+    Array.isArray(
+      skill.dependencies
+    )
+      ? skill.dependencies
+      : [];
+
+  const targetRoot =
+    path.resolve(
+      process.cwd(),
+      targetDirectory
+    );
+
+  for (
+    const dependencyName of dependencies
+  ) {
+    const dependency =
+      findSkill(
+        dependencyName
+      );
+
+    if (!dependency) {
+      throw new Error(
+        `Skill dependency "${dependencyName}" required by "${skill.name}" was not found.`
+      );
+    }
+
+    updateSkillDependencies(
+      dependency.skill,
+      targetDirectory,
+      lockfile,
+      visited
+    );
+
+    const dependencyDirectory =
+      path.join(
+        targetRoot,
+        dependencyName
+      );
+
+    const lockedDependency =
+      lockfile.skills[
+        dependencyName
+      ];
+
+    const dependencyNeedsUpdate =
+      !fs.existsSync(
+        dependencyDirectory
+      ) ||
+      !lockedDependency ||
+      lockedDependency.version !==
+        dependency.skill.version;
+
+    if (
+      dependencyNeedsUpdate
+    ) {
+      if (
+        fs.existsSync(
+          dependencyDirectory
+        )
+      ) {
+        fs.rmSync(
+          dependencyDirectory,
+          {
+            recursive: true,
+            force: true
+          }
+        );
+      }
+
+      copyDirectory(
+        dependency.directory,
+        dependencyDirectory
+      );
+
+      lockfile.skills[
+        dependencyName
+      ] = {
+        version:
+          dependency.skill.version,
+
+        source:
+          "maykel-dev-skills"
+      };
+    }
+  }
+}
 function updateInstalledSkills(
   targetDirectory = defaultTarget,
   skillName = null
@@ -813,6 +919,17 @@ function updateInstalledSkills(
 
     const currentVersion =
       currentSkill.skill.version;
+
+    updateSkillDependencies(
+      currentSkill.skill,
+      targetDirectory,
+      lockfile
+    );
+
+    writeLockfile(
+      process.cwd(),
+      lockfile
+    );
 
     if (
       currentVersion ===
