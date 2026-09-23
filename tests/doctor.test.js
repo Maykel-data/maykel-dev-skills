@@ -1,4 +1,5 @@
 import test from "node:test";
+import fs from "node:fs";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -65,4 +66,75 @@ test("doctor includes the expected health checks", () => {
       "automated tests pass"
     )
   );
+});
+
+test("doctor validates a valid lockfile", () => {
+  const doctor = createDoctor(root);
+  const checks = doctor.run();
+
+  const lockfileCheck =
+    checks.find(
+      (check) =>
+        check.name ===
+        "lockfile is valid"
+    );
+
+  assert.ok(lockfileCheck);
+  assert.equal(
+    lockfileCheck.passed,
+    true,
+    lockfileCheck.details
+  );
+});
+
+test("doctor rejects an invalid lockfile", () => {
+  const lockfilePath =
+    path.join(
+      root,
+      "skills-lock.json"
+    );
+
+  const original =
+    fs.readFileSync(
+      lockfilePath,
+      "utf8"
+    );
+
+  try {
+    fs.writeFileSync(
+      lockfilePath,
+      "{ invalid json",
+      "utf8"
+    );
+
+    const doctor =
+      createDoctor(root);
+
+    const checks =
+      doctor.run();
+
+    const lockfileCheck =
+      checks.find(
+        (check) =>
+          check.name ===
+          "lockfile is valid"
+      );
+
+    assert.ok(lockfileCheck);
+    assert.equal(
+      lockfileCheck.passed,
+      false
+    );
+
+    assert.match(
+      lockfileCheck.details,
+      /Invalid lockfile/
+    );
+  } finally {
+    fs.writeFileSync(
+      lockfilePath,
+      original,
+      "utf8"
+    );
+  }
 });

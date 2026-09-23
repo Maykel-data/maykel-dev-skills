@@ -1,6 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import {
+  getLockfilePath,
+  readLockfile
+} from "./lockfile.js";
 
 function createDoctor(root) {
   const checks = [];
@@ -233,6 +237,47 @@ function createDoctor(root) {
     );
   }
 
+  function checkLockfile() {
+    const lockfilePath =
+      getLockfilePath(root);
+
+    if (
+      !fs.existsSync(
+        lockfilePath
+      )
+    ) {
+      addCheck(
+        "lockfile is valid",
+        true,
+        "skills-lock.json was not found. No installed skills are locked."
+      );
+
+      return;
+    }
+
+    try {
+      const lockfile =
+        readLockfile(root);
+
+      const skillCount =
+        Object.keys(
+          lockfile.skills
+        ).length;
+
+      addCheck(
+        "lockfile is valid",
+        true,
+        `skills-lock.json is valid with ${skillCount} locked skill(s).`
+      );
+    } catch (error) {
+      addCheck(
+        "lockfile is valid",
+        false,
+        error.message
+      );
+    }
+  }
+
   function checkTests() {
     const result = spawnSync(
       process.execPath,
@@ -268,6 +313,7 @@ function createDoctor(root) {
     checkFile("docs/SKILL-SPEC.md");
     checkRegistry();
     checkSkills();
+    checkLockfile();
     checkTests();
 
     return checks;
