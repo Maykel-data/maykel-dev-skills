@@ -849,6 +849,18 @@ function showSkillInfo(
     `  Tags:        ${tags}`
   );
 
+  const dependencies =
+    Array.isArray(
+      result.skill.dependencies
+    )
+      ? result.skill.dependencies.join(
+          ", "
+        )
+      : "none";
+
+  print(
+    `  Dependencies: ${dependencies}`
+  );
   print(
     `  Path:        ${relativePath}\n`
   );

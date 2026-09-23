@@ -285,3 +285,74 @@ test(
     }
   }
 );
+test(
+  "blocks removal of a skill required by another installed skill",
+  () => {
+    const project =
+      createTempProject();
+
+    try {
+      const target =
+        path.join(
+          project,
+          ".agents",
+          "skills"
+        );
+
+      installSkill(
+        "sqlite-debugging",
+        target
+      );
+
+      assert.equal(
+        fs.existsSync(
+          path.join(
+            target,
+            "sqlite-debugging",
+            "SKILL.md"
+          )
+        ),
+        true
+      );
+
+      assert.equal(
+        fs.existsSync(
+          path.join(
+            target,
+            "surgical-fix",
+            "SKILL.md"
+          )
+        ),
+        true
+      );
+
+      assert.throws(
+        () =>
+          removeSkill(
+            "surgical-fix",
+            target
+          ),
+        /Cannot remove skill "surgical-fix" because installed skill\(s\) depend on it: sqlite-debugging\./
+      );
+
+      assert.equal(
+        fs.existsSync(
+          path.join(
+            target,
+            "surgical-fix",
+            "SKILL.md"
+          )
+        ),
+        true
+      );
+    } finally {
+      fs.rmSync(
+        project,
+        {
+          recursive: true,
+          force: true
+        }
+      );
+    }
+  }
+);

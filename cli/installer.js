@@ -514,6 +514,76 @@ function installSkill(
   };
 }
 
+function findInstalledDependents(
+  skillName,
+  targetRoot
+) {
+  if (
+    !fs.existsSync(
+      targetRoot
+    )
+  ) {
+    return [];
+  }
+
+  const dependents = [];
+
+  for (
+    const entry of fs.readdirSync(
+      targetRoot,
+      {
+        withFileTypes: true
+      }
+    )
+  ) {
+    if (
+      !entry.isDirectory()
+    ) {
+      continue;
+    }
+
+    const skillDirectory =
+      path.join(
+        targetRoot,
+        entry.name
+      );
+
+    const skillFile =
+      path.join(
+        skillDirectory,
+        "SKILL.md"
+      );
+
+    if (
+      !fs.existsSync(
+        skillFile
+      )
+    ) {
+      continue;
+    }
+
+    const skill =
+      parseSkill(
+        skillFile
+      );
+
+    if (
+      Array.isArray(
+        skill?.dependencies
+      ) &&
+      skill.dependencies.includes(
+        skillName
+      )
+    ) {
+      dependents.push(
+        skill.name
+      );
+    }
+  }
+
+  return dependents.sort();
+}
+
 function removeSkill(
   skillName,
   targetDirectory = defaultTarget
@@ -547,6 +617,20 @@ function removeSkill(
       targetRoot,
       skillName
     );
+
+  const dependents =
+    findInstalledDependents(
+      skillName,
+      targetRoot
+    );
+
+  if (
+    dependents.length > 0
+  ) {
+    throw new Error(
+      `Cannot remove skill "${skillName}" because installed skill(s) depend on it: ${dependents.join(", ")}.`
+    );
+  }
 
   if (
     !fs.existsSync(
